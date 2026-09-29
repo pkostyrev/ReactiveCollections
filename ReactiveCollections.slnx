@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src\ReactiveCollections.csproj" Id="1b985664-bc0e-499e-8c58-ec11bd109c7f" />
+  <Project Path="tests/ReactiveCollections.Tests.csproj" />
+</Solution>

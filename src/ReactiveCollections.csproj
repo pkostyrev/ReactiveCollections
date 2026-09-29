@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Собираем сразу под две платформы -->
+    <TargetFrameworks>netstandard2.0;net472</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!-- Если нужен разный код для разных платформ, используем константы -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <DefineConstants>$(DefineConstants);UNITY_COMPATIBLE</DefineConstants>
+  </PropertyGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <PropertyGroup>
+      <ArtifactsDir>$(SolutionDir)artifacts\$(TargetFramework)\</ArtifactsDir>
+    </PropertyGroup>
+    <MakeDir Directories="$(ArtifactsDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ArtifactsDir)" />
+  </Target>
+
+</Project>
