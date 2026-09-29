@@ -18,7 +18,8 @@ namespace ReactiveCollections
     /// Соответствие с LINQ:
     /// <c>ObserveCount()</c> ↔ <c>Count()</c>,
     /// <c>ObserveAny(pred)</c> ↔ <c>Any(pred)</c>,
-    /// <c>ObserveAll(pred)</c> ↔ <c>All(pred)</c>.
+    /// <c>ObserveAll(pred)</c> ↔ <c>All(pred)</c>,
+    /// <c>ObserveSum(sel)</c> ↔ <c>Sum(sel)</c>.
     /// </para>
     /// </remarks>
     public static class AggregateExtensions
@@ -110,8 +111,6 @@ namespace ReactiveCollections
         /// </exception>
         /// <remarks>
         /// Для пустого источника значение — <c>true</c> (вакуумная истина).
-        /// Совпадает с семантикой
-        /// <see cref="System.Linq.Enumerable.All{T}(System.Collections.Generic.IEnumerable{T}, System.Func{T, bool})"/>.
         /// </remarks>
         public static IObservableValue<bool> ObserveAll<T>(
             this IObservableList<T> source,
@@ -119,5 +118,77 @@ namespace ReactiveCollections
         {
             return new AllNode<T>(source, predicate);
         }
+
+        // -------------------------------------------------------------------
+        // ObserveSum (без селектора)
+        // -------------------------------------------------------------------
+
+        /// <summary>
+        /// Возвращает живое значение: сумма элементов источника.
+        /// </summary>
+        /// <remarks>
+        /// Для пустого источника значение — <c>0</c>. Совпадает с семантикой
+        /// <see cref="System.Linq.Enumerable.Sum(System.Collections.Generic.IEnumerable{int})"/>.
+        /// </remarks>
+        public static IObservableValue<int> ObserveSum(this IObservableList<int> source)
+            => new SumNode<int>(source, zero: 0, add: (a, b) => a + b);
+
+        /// <inheritdoc cref="ObserveSum(IObservableList{int})"/>
+        public static IObservableValue<long> ObserveSum(this IObservableList<long> source)
+            => new SumNode<long>(source, zero: 0L, add: (a, b) => a + b);
+
+        /// <inheritdoc cref="ObserveSum(IObservableList{int})"/>
+        public static IObservableValue<float> ObserveSum(this IObservableList<float> source)
+            => new SumNode<float>(source, zero: 0f, add: (a, b) => a + b);
+
+        /// <inheritdoc cref="ObserveSum(IObservableList{int})"/>
+        public static IObservableValue<double> ObserveSum(this IObservableList<double> source)
+            => new SumNode<double>(source, zero: 0d, add: (a, b) => a + b);
+
+        /// <inheritdoc cref="ObserveSum(IObservableList{int})"/>
+        public static IObservableValue<decimal> ObserveSum(this IObservableList<decimal> source)
+            => new SumNode<decimal>(source, zero: 0m, add: (a, b) => a + b);
+
+        // -------------------------------------------------------------------
+        // ObserveSum (с селектором)
+        // -------------------------------------------------------------------
+
+        /// <summary>
+        /// Возвращает живое значение: сумма значений, выбранных из элементов источника.
+        /// </summary>
+        /// <typeparam name="TSource">Тип элемента источника.</typeparam>
+        /// <param name="source">Источник. Не может быть <c>null</c>.</param>
+        /// <param name="selector">Селектор значения. Не может быть <c>null</c>.</param>
+        /// <remarks>
+        /// Для пустого источника значение — <c>0</c>.
+        /// </remarks>
+        public static IObservableValue<int> ObserveSum<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, int> selector)
+            => new SumWithSelectorNode<TSource, int>(source, selector, zero: 0, add: (a, b) => a + b);
+
+        /// <inheritdoc cref="ObserveSum{TSource}(IObservableList{TSource}, Func{TSource, int})"/>
+        public static IObservableValue<long> ObserveSum<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, long> selector)
+            => new SumWithSelectorNode<TSource, long>(source, selector, zero: 0L, add: (a, b) => a + b);
+
+        /// <inheritdoc cref="ObserveSum{TSource}(IObservableList{TSource}, Func{TSource, int})"/>
+        public static IObservableValue<float> ObserveSum<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, float> selector)
+            => new SumWithSelectorNode<TSource, float>(source, selector, zero: 0f, add: (a, b) => a + b);
+
+        /// <inheritdoc cref="ObserveSum{TSource}(IObservableList{TSource}, Func{TSource, int})"/>
+        public static IObservableValue<double> ObserveSum<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, double> selector)
+            => new SumWithSelectorNode<TSource, double>(source, selector, zero: 0d, add: (a, b) => a + b);
+
+        /// <inheritdoc cref="ObserveSum{TSource}(IObservableList{TSource}, Func{TSource, int})"/>
+        public static IObservableValue<decimal> ObserveSum<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, decimal> selector)
+            => new SumWithSelectorNode<TSource, decimal>(source, selector, zero: 0m, add: (a, b) => a + b);
     }
 }
