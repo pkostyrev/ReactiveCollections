@@ -40,36 +40,64 @@ ReactiveCollections — не копия `ObservableCollection<T>` и не ана
 
 ## 2. Архитектура
 
-<table>
-<tr><th>Уровень</th><th>Ответственность</th><th>Пример</th></tr>
-<tr><td><code>Change&lt;T&gt;</code></td><td>Описание изменения состояния</td><td>Add, Remove, Update, Replace, Reset</td></tr>
-<tr><td><code>IObservableList&lt;T&gt;</code></td><td>Единый контракт чтения + событие</td><td>Источник или проекция</td></tr>
-<tr><td><code>ObservableNode&lt;T&gt;</code></td><td>Хранение результата и публикация событий</td><td>Items + Changed</td></tr>
-<tr><td><code>ObservableList&lt;T&gt;</code></td><td>Корневой изменяемый источник</td><td>Add / Remove / Update / Replace / Reset</td></tr>
-<tr><td><code>ProjectionNode&lt;TSource, TResult&gt;</code></td><td>База для одноисточниковых проекций</td><td>Filter / Select</td></tr>
-<tr><td><code>KeyedProjectionNode&lt;TKey, TSource, TResult&gt;</code></td><td>Общий механизм индексированных групп</td><td>GroupBy</td></tr>
-<tr><td><code>MergeNode&lt;T&gt;</code></td><td>Объединение двух живых источников</td><td>Concat двух списков</td></tr>
-</table>
+| Уровень | Ответственность | Пример |
+|---|---|---|
+| `Change<T>` | Описание изменения состояния | Add, Remove, Update, Replace, Reset |
+| `IObservableList<T>` | Единый контракт чтения + событие | Источник или проекция |
+| `ObservableNode<T>` | Хранение результата и публикация событий | `Items` + `Changed` |
+| `ObservableList<T>` | Корневой изменяемый источник | Add / Remove / Update / Replace / Reset |
+| `ProjectionNode<TSource, TResult>` | База для одноисточниковых проекций | Filter / Select |
+| `KeyedProjectionNode<TKey, TSource, TResult>` | Общий механизм индексированных групп | GroupBy |
+| `MergeNode<T>` | Объединение двух живых источников | Concat двух списков |
 
 Поток изменений:
 
+```
 ObservableList<TSource>
-│
-▼
-ProjectionNode<TSource, TResult> ─── Filter / Select
-│
-▼
-ObservableNode<TResult> ─── сам является IObservableList<TResult>
-│
-▼
-следующий узел / UI / ...
+        │
+        ▼
+ProjectionNode<TSource, TResult>  ─── Filter / Select
+        │
+        ▼
+ObservableNode<TResult>           ─── сам является IObservableList<TResult>
+        │
+        ▼
+   следующий узел / UI / ...
+```
+
+Все узлы реализуют `IObservableList<T>` и могут быть источниками для
+следующих проекций. Цепочка строится свободно:
+
+```
+source.Filter(...).Select(...).GroupBy(...).Select(...)
+```
+
+---
 
 ## 3. Публичный API
 
 ### 3.1 `Change<T>`
 
-Иммутабельный DTO одного изменения. Пять видов: `Add`, `Remove`, `Update`,
-`Replace`, `Reset`.
+Иммутабельный DTO одного изменения. Пять видов:
+
+```csharp
+public enum ChangeType
+{
+    Add,
+    Remove,
+    Replace,
+    Update,
+    Reset
+}
+
+public sealed class Change<T>
+{
+    public ChangeType Type { get; }
+    public T Item { get; }
+    public T? OldItem { get; }
+    // + статические фабрики Add/Remove/Update/Replace/Reset
+}
+```
 
 | Фабрика | Назначение |
 |---|---|
@@ -86,3 +114,228 @@ public interface IObservableList<T> : IReadOnlyList<T>
 {
     event Action<Change<T>>? Changed;
 }
+```
+
+### 3.3 `ObservableList<T>`
+
+Корневой изменяемый список:
+
+```csharp
+var list = new ObservableList<Player>();
+
+list.Add(p);
+list.Remove(p);
+list.Update(p);          // для mutable-объектов: p изменился внутри
+list.Replace(p, q);
+list.Reset();            // очистить
+```
+
+### 3.4 Extension-методы
+
+```csharp
+var filtered = source.Filter(p => p.Level >= 10);
+
+var views = source.Select(
+    p => new PlayerView(p),
+    (p, view) => view.Refresh(p));
+
+var groups = source.GroupBy(p => p.TeamId);
+
+var merged = first.Merge(second);
+```
+
+---
+
+## 4. Ограничения и допущения
+
+Раздел будет пополняться по мере развития библиотеки.
+
+### 4.1 `Change<T>.Replace` и `default(T)`
+
+`Change<T>.OldItem` имеет тип `T?`. Для ссылочных `T` «не заполнено»
+означает `null`. Для значимых — `default(T)` (например, `0` для `int`).
+
+Библиотека **не может отличить** «не заполнено» от «заполнено значением
+по умолчанию». Поэтому:
+
+- `Replace` не поддерживает `T`, у которого `default(T)` — осмысленное
+  значение (например, `0` как валидный ID);
+- передача `null` в `Replace` (для ссылочных `T`) приводит к
+  `InvalidOperationException` при обработке в узле проекции.
+
+Если в будущем понадобится поддерживать `default(T)` как валидное
+значение, потребуется отдельная иерархия типов (`ReplaceChange<T>`,
+`AddChange<T>` и т.д.) с не-nullable полями. Это **осознанно отложено**,
+потому что требует переписывания всех узлов и тестов.
+
+### 4.2 `Update` не несёт старое значение
+
+`Change<T>.Update(item)` содержит только текущую ссылку. Для mutable-
+моделей Unity это нормально: пользователь меняет поле объекта и вызывает
+`list.Update(p)` — подписчики видят тот же экземпляр и сами решают,
+что перечитать.
+
+Для immutable `T` (например, `record`) `Update` **бесполезен** — старое
+значение уже потеряно к моменту вызова. В таких сценариях используйте
+`Replace`.
+
+### 4.3 `Remove` удаляет первый равный
+
+`ObservableNode.RemoveInternal(item)` делегирует в `List<T>.Remove(item)`,
+который удаляет **первый** элемент, равный по `Equals`. Если в списке
+есть дубликаты — неопределённо, какой именно экземпляр уйдёт.
+
+Для `SelectNode`, `KeyedProjectionNode` и `MergeNode` это учтено: они
+хранят параллельный список `Entry` с той же семантикой, что source.
+
+Для `FilterNode` семантика совпадает с source: если source удалил первый
+равный, то и фильтр удалит первый равный из своей выдачи.
+
+### 4.4 Нет `IDisposable`
+
+Узлы подписываются на `Source.Changed` и **не отписываются**. Пока жив
+источник, жив и узел. Планируется в ближайшей итерации — см. [раздел 7](#7-дорожная-карта).
+
+### 4.5 Нет батчинга
+
+`AddRange`, `BeginUpdate`, batch-события не реализованы. При массовой
+загрузке (например, 1000 элементов при инициализации) каждый элемент
+даёт отдельное событие. Оптимизация — в дорожной карте.
+
+### 4.6 Инициализация в конструкторе
+
+`FilterNode`, `SelectNode`, `GroupNode` вызывают `Initialize()` в своём
+конструкторе, что даёт N событий на старте и классическую ловушку с
+виртуальными вызовами. Пересмотр — в дорожной карте.
+
+### 4.7 Поток выполнения
+
+Библиотека **не потокобезопасна**. Все изменения должны происходить
+в одном потоке (обычно — главный поток Unity). Многопоточность не
+поддерживается и не планируется до явного запроса.
+
+### 4.8 Исключения в подписчиках
+
+`ObservableNode.Raise` вызывает всех подписчиков, собирая исключения.
+Если упал один — остальные всё равно получат событие. Одиночное
+исключение пробрасывается как есть, несколько — как `AggregateException`.
+
+Это отличается от поведения «сырого» multicast delegate, где первое
+исключение прерывает обход.
+
+---
+
+## 5. Сценарии использования
+
+### 5.1 Player → PlayerView → Group
+
+```csharp
+var views = players
+    .Filter(p => p.Level >= 10)
+    .Select(
+        p => new PlayerView(p),
+        (p, view) => view.Refresh(p))
+    .GroupBy(view => view.TeamId);
+```
+
+### 5.2 Живая группа с ссылкой на вложенный список
+
+```csharp
+var groups = results
+    .Filter(r => r.SessionVM.SchemeIndex >= 0)
+    .GroupBy(r => r.SessionVM.SchemeIndex);
+
+var dynamics = groups.Select(
+    g => new Dynamics(g.Items),
+    (_, _) => { });
+
+// Dynamics._bfbResults — та же живая коллекция, что g.Items.
+// Внутренние Add/Remove/Update в группе видны без пересоздания Dynamics.
+```
+
+### 5.3 Наследование через `Select` без потери ссылки
+
+```csharp
+public class BFBSessionResult : ResultBase { }
+
+var bases = results.Select(
+    r => (ResultBase)r,
+    (_, _) => { });
+
+// bases[0] и results[0] — один и тот же объект.
+```
+
+---
+
+## 6. История решений
+
+### Почему `Update` отдельно от `Replace`
+
+Для Unity объекты остаются обычными изменяемыми. Пользователь меняет
+поле и вызывает `Update(item)` — подписчики видят тот же экземпляр.
+`Replace` — для замены одного экземпляра другим (например, при пуле
+объектов или подмене конфигурации).
+
+Смешивать их в один тип нельзя: `Update` не несёт старое значение,
+`Replace` — несёт.
+
+### Почему mutable-model
+
+Unity-код работает с обычными классами и не любит аллокации. Иммутабельные
+модели потребовали бы `with`-паттернов и аллокаций на каждое изменение
+поля. `Update` — компромисс: библиотека не отслеживает поля
+автоматически, но даёт пользователю уведомить о ручном изменении.
+
+### Почему `Dictionary` → `List<Entry>`
+
+Изначально `SelectNode` и `KeyedProjectionNode` использовали
+`Dictionary<TSource, TResult>` для маппинга источник→результат. Это
+ломается на дубликатах по `Equals`: второй элемент перезатирал первый,
+и `Remove` удалял не тот `TResult`.
+
+Заменено на параллельный `List<Entry>` с линейным поиском. Порядок
+`Entry` совпадает с порядком source, поиск идёт по первому равному —
+та же семантика, что `List.Remove` в source.
+
+### Почему `Group.Items` публичный
+
+`Group<TKey, T>` — самостоятельный реактивный источник. Пользователь
+может подписаться на `group.Items.Changed` и не тянуть всё через один
+канал. Это осознанный отказ от `ChildChange` в пользу «каждый узел —
+сам себе источник».
+
+Обратная сторона: `group.Items` можно мутировать в обход `GroupNode`.
+Это **не проверяется** — доверяем вызывающему.
+
+### Почему `Raise` не останавливается на первом исключении
+
+Multicast delegate по умолчанию прерывает обход при первом исключении.
+В реактивной цепочке это означает, что один упавший подписчик
+отрезает остальных от события. `Raise` собирает исключения и вызывает
+всех, а в конце пробрасывает одно или `AggregateException`.
+
+---
+
+## 7. Дорожная карта
+
+Текущий этап — **закрытие P2** (устойчивость и документация).
+
+Дальше — по приоритету:
+
+1. **`IDisposable` и жизненный цикл узлов.** Сейчас узлы не отписываются.
+   Это блокирует `ObservableValue` и агрегаты.
+2. **`ObservableValue<T>`** — реактивное одиночное значение.
+3. **Агрегаты:** `Count`, `Any`, `All`, `Sum`, `Min`, `Max`, `Average`.
+4. **`OrderBy` / `Move`** — требуют позиционной семантики в `Change<T>`.
+5. **`SelectMany`** — вернуться после `IDisposable`, переиспользуя уже
+   отработанную модель `Entry + Subscription`.
+6. **Батчинг** — `BeginUpdate` / `EndUpdate` или batch-события.
+7. **Иерархия `Change<T>`** — если понадобятся `null`/`default` как
+   осмысленные значения или `Move`.
+
+---
+
+## 8. Изменения
+
+История изменений ведётся через git-коммиты. Раздел будет заменён на
+`CHANGELOG.md`, когда проект выйдет за пределы активной разработки.
