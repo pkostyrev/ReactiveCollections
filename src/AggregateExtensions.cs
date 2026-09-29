@@ -1,4 +1,6 @@
-﻿namespace ReactiveCollections
+﻿using System;
+
+namespace ReactiveCollections
 {
     /// <summary>
     /// Extension-методы агрегации над <see cref="IObservableList{T}"/>.
@@ -13,23 +15,25 @@
     /// возвращающие однократный результат.
     /// </para>
     /// <para>
-    /// Соответствие:
-    /// <list type="table">
-    /// <item><term><c>ObserveCount()</c></term><description>живой <c>Count()</c></description></item>
-    /// <item><term><c>ObserveAny(pred)</c></term><description>живой <c>Any(pred)</c></description></item>
-    /// <item><term><c>ObserveAll(pred)</c></term><description>живой <c>All(pred)</c></description></item>
-    /// </list>
+    /// Соответствие с LINQ:
+    /// <c>ObserveCount()</c> ↔ <c>Count()</c>,
+    /// <c>ObserveAny(pred)</c> ↔ <c>Any(pred)</c>,
+    /// <c>ObserveAll(pred)</c> ↔ <c>All(pred)</c>.
     /// </para>
     /// </remarks>
     public static class AggregateExtensions
     {
+        // -------------------------------------------------------------------
+        // ObserveCount
+        // -------------------------------------------------------------------
+
         /// <summary>
         /// Возвращает живое значение: количество элементов в источнике.
         /// </summary>
         /// <typeparam name="T">Тип элемента источника.</typeparam>
         /// <param name="source">Источник. Не может быть <c>null</c>.</param>
         /// <returns>Новый <see cref="CountNode{T}"/> как <see cref="IObservableValue{T}"/>.</returns>
-        /// <exception cref="System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// Если <paramref name="source"/> — <c>null</c>.
         /// </exception>
         /// <remarks>
@@ -39,6 +43,81 @@
         public static IObservableValue<int> ObserveCount<T>(this IObservableList<T> source)
         {
             return new CountNode<T>(source);
+        }
+
+        // -------------------------------------------------------------------
+        // ObserveAny
+        // -------------------------------------------------------------------
+
+        /// <summary>
+        /// Возвращает живое значение: содержит ли источник хотя бы один элемент.
+        /// </summary>
+        /// <typeparam name="T">Тип элемента источника.</typeparam>
+        /// <param name="source">Источник. Не может быть <c>null</c>.</param>
+        /// <returns>Новый <see cref="AnyNode{T}"/> как <see cref="IObservableValue{T}"/>.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// Если <paramref name="source"/> — <c>null</c>.
+        /// </exception>
+        /// <remarks>
+        /// Для пустого источника значение — <c>false</c>. Совпадает с
+        /// семантикой <see cref="System.Linq.Enumerable.Any{T}(System.Collections.Generic.IEnumerable{T})"/>.
+        /// </remarks>
+        public static IObservableValue<bool> ObserveAny<T>(this IObservableList<T> source)
+        {
+            return new AnyNode<T>(source);
+        }
+
+        /// <summary>
+        /// Возвращает живое значение: есть ли в источнике хотя бы один элемент,
+        /// удовлетворяющий предикату.
+        /// </summary>
+        /// <typeparam name="T">Тип элемента источника.</typeparam>
+        /// <param name="source">Источник. Не может быть <c>null</c>.</param>
+        /// <param name="predicate">
+        /// Предикат. Не может быть <c>null</c>. Вызывается синхронно при
+        /// каждом изменении источника.
+        /// </param>
+        /// <returns>Новый <see cref="AnyWithPredicateNode{T}"/> как <see cref="IObservableValue{T}"/>.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// Если <paramref name="source"/> или <paramref name="predicate"/> — <c>null</c>.
+        /// </exception>
+        /// <remarks>
+        /// Для пустого источника значение — <c>false</c>.
+        /// </remarks>
+        public static IObservableValue<bool> ObserveAny<T>(
+            this IObservableList<T> source,
+            Func<T, bool> predicate)
+        {
+            return new AnyWithPredicateNode<T>(source, predicate);
+        }
+
+        // -------------------------------------------------------------------
+        // ObserveAll
+        // -------------------------------------------------------------------
+
+        /// <summary>
+        /// Возвращает живое значение: все ли элементы источника удовлетворяют предикату.
+        /// </summary>
+        /// <typeparam name="T">Тип элемента источника.</typeparam>
+        /// <param name="source">Источник. Не может быть <c>null</c>.</param>
+        /// <param name="predicate">
+        /// Предикат. Не может быть <c>null</c>. Вызывается синхронно при
+        /// каждом изменении источника.
+        /// </param>
+        /// <returns>Новый <see cref="AllNode{T}"/> как <see cref="IObservableValue{T}"/>.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// Если <paramref name="source"/> или <paramref name="predicate"/> — <c>null</c>.
+        /// </exception>
+        /// <remarks>
+        /// Для пустого источника значение — <c>true</c> (вакуумная истина).
+        /// Совпадает с семантикой
+        /// <see cref="System.Linq.Enumerable.All{T}(System.Collections.Generic.IEnumerable{T}, System.Func{T, bool})"/>.
+        /// </remarks>
+        public static IObservableValue<bool> ObserveAll<T>(
+            this IObservableList<T> source,
+            Func<T, bool> predicate)
+        {
+            return new AllNode<T>(source, predicate);
         }
     }
 }
