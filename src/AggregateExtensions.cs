@@ -190,5 +190,138 @@ namespace ReactiveCollections
             this IObservableList<TSource> source,
             Func<TSource, decimal> selector)
             => new SumWithSelectorNode<TSource, decimal>(source, selector, zero: 0m, add: (a, b) => a + b);
+
+        // -------------------------------------------------------------------
+        // ObserveMin (без селектора)
+        // -------------------------------------------------------------------
+
+        /// <summary>
+        /// Возвращает живое значение: минимальный элемент источника или
+        /// <c>null</c>, если источник пуст.
+        /// </summary>
+        /// <remarks>
+        /// Для пустого источника значение — <c>null</c>. Это отличается от LINQ
+        /// (<c>Min()</c> бросает <see cref="InvalidOperationException"/>),
+        /// но согласовано с моделью агрегатов.
+        /// </remarks>
+        public static IObservableValue<int?> ObserveMin(this IObservableList<int> source)
+            => new MinNode<int>(source);
+
+        /// <inheritdoc cref="ObserveMin(IObservableList{int})"/>
+        public static IObservableValue<long?> ObserveMin(this IObservableList<long> source)
+            => new MinNode<long>(source);
+
+        /// <inheritdoc cref="ObserveMin(IObservableList{int})"/>
+        public static IObservableValue<float?> ObserveMin(this IObservableList<float> source)
+            => new MinNode<float>(source);
+
+        /// <inheritdoc cref="ObserveMin(IObservableList{int})"/>
+        public static IObservableValue<double?> ObserveMin(this IObservableList<double> source)
+            => new MinNode<double>(source);
+
+        /// <inheritdoc cref="ObserveMin(IObservableList{int})"/>
+        public static IObservableValue<decimal?> ObserveMin(this IObservableList<decimal> source)
+            => new MinNode<decimal>(source);
+
+        // -------------------------------------------------------------------
+        // ObserveMin (с селектором)
+        // -------------------------------------------------------------------
+
+        /// <summary>
+        /// Возвращает живое значение: минимальное значение, выбранное из элементов
+        /// источника, или <c>null</c>, если источник пуст.
+        /// </summary>
+        public static IObservableValue<int?> ObserveMin<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, int> selector)
+            => new MinWithSelectorNode<TSource, int>(source, selector);
+
+        /// <inheritdoc cref="ObserveMin{TSource}(IObservableList{TSource}, Func{TSource, int})"/>
+        public static IObservableValue<long?> ObserveMin<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, long> selector)
+            => new MinWithSelectorNode<TSource, long>(source, selector);
+
+        /// <inheritdoc cref="ObserveMin{TSource}(IObservableList{TSource}, Func{TSource, int})"/>
+        public static IObservableValue<float?> ObserveMin<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, float> selector)
+            => new MinWithSelectorNode<TSource, float>(source, selector);
+
+        /// <inheritdoc cref="ObserveMin{TSource}(IObservableList{TSource}, Func{TSource, int})"/>
+        public static IObservableValue<double?> ObserveMin<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, double> selector)
+            => new MinWithSelectorNode<TSource, double>(source, selector);
+
+        /// <inheritdoc cref="ObserveMin{TSource}(IObservableList{TSource}, Func{TSource, int})"/>
+        public static IObservableValue<decimal?> ObserveMin<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, decimal> selector)
+            => new MinWithSelectorNode<TSource, decimal>(source, selector);
+
+        // -------------------------------------------------------------------
+        // ObserveMax (без селектора)
+        // -------------------------------------------------------------------
+
+        /// <summary>
+        /// Возвращает живое значение: максимальный элемент источника или
+        /// <c>null</c>, если источник пуст.
+        /// </summary>
+        public static IObservableValue<int?> ObserveMax(this IObservableList<int> source)
+            => new MaxNode<int>(source);
+
+        /// <inheritdoc cref="ObserveMax(IObservableList{int})"/>
+        public static IObservableValue<long?> ObserveMax(this IObservableList<long> source)
+            => new MaxNode<long>(source);
+
+        /// <inheritdoc cref="ObserveMax(IObservableList{int})"/>
+        public static IObservableValue<float?> ObserveMax(this IObservableList<float> source)
+            => new MaxNode<float>(source);
+
+        /// <inheritdoc cref="ObserveMax(IObservableList{int})"/>
+        public static IObservableValue<double?> ObserveMax(this IObservableList<double> source)
+            => new MaxNode<double>(source);
+
+        /// <inheritdoc cref="ObserveMax(IObservableList{int})"/>
+        public static IObservableValue<decimal?> ObserveMax(this IObservableList<decimal> source)
+            => new MaxNode<decimal>(source);
+
+        // -------------------------------------------------------------------
+        // ObserveMax (с селектором)
+        // -------------------------------------------------------------------
+
+        /// <summary>
+        /// Возвращает живое значение: максимальное значение, выбранное из элементов
+        /// источника, или <c>null</c>, если источник пуст.
+        /// </summary>
+        public static IObservableValue<int?> ObserveMax<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, int> selector)
+            => new MaxWithSelectorNode<TSource, int>(source, selector);
+
+        /// <inheritdoc cref="ObserveMax{TSource}(IObservableList{TSource}, Func{TSource, int})"/>
+        public static IObservableValue<long?> ObserveMax<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, long> selector)
+            => new MaxWithSelectorNode<TSource, long>(source, selector);
+
+        /// <inheritdoc cref="ObserveMax{TSource}(IObservableList{TSource}, Func{TSource, int})"/>
+        public static IObservableValue<float?> ObserveMax<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, float> selector)
+            => new MaxWithSelectorNode<TSource, float>(source, selector);
+
+        /// <inheritdoc cref="ObserveMax{TSource}(IObservableList{TSource}, Func{TSource, int})"/>
+        public static IObservableValue<double?> ObserveMax<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, double> selector)
+            => new MaxWithSelectorNode<TSource, double>(source, selector);
+
+        /// <inheritdoc cref="ObserveMax{TSource}(IObservableList{TSource}, Func{TSource, int})"/>
+        public static IObservableValue<decimal?> ObserveMax<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, decimal> selector)
+            => new MaxWithSelectorNode<TSource, decimal>(source, selector);
     }
 }
