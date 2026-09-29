@@ -439,5 +439,82 @@ namespace ReactiveCollections.Tests
 
             Assert.DoesNotThrow(() => list.Add(1));
         }
+
+        [Test]
+        public void Dispose_UnsubscribesFromSource()
+        {
+            var source = new ObservableList<int>();
+            var filter = source.Filter(x => x > 0);
+
+            bool received = false;
+            filter.Changed += _ => received = true;
+
+            filter.Dispose();
+
+            source.Add(1);
+
+            Assert.That(received, Is.False);
+        }
+
+        [Test]
+        public void Dispose_IsIdempotent()
+        {
+            var source = new ObservableList<int>();
+            var filter = source.Filter(x => true);
+
+            filter.Dispose();
+
+            Assert.DoesNotThrow(() => filter.Dispose());
+        }
+
+        [Test]
+        public void Dispose_MutationAfterDispose_Throws()
+        {
+            var list = new ObservableList<int>();
+            list.Dispose();
+
+            Assert.Throws<ObjectDisposedException>(() => list.Add(1));
+        }
+
+        [Test]
+        public void Dispose_ReadAfterDispose_DoesNotThrow()
+        {
+            var list = new ObservableList<int>();
+            list.Add(1);
+            list.Dispose();
+
+            Assert.That(list.Count, Is.EqualTo(1));
+            Assert.That(list[0], Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Dispose_MergeNode_UnsubscribesFromBothSources()
+        {
+            var a = new ObservableList<int>();
+            var b = new ObservableList<int>();
+            var merge = a.Merge(b);
+
+            bool received = false;
+            merge.Changed += _ => received = true;
+
+            merge.Dispose();
+
+            a.Add(1);
+            b.Add(1);
+
+            Assert.That(received, Is.False);
+        }
+
+        [Test]
+        public void Dispose_SourceIsNotDisposed()
+        {
+            var source = new ObservableList<int>();
+            var filter = source.Filter(x => true);
+
+            filter.Dispose();
+
+            Assert.DoesNotThrow(() => source.Add(1));
+            Assert.That(source.Count, Is.EqualTo(1));
+        }
     }
 }
