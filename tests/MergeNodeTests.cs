@@ -544,5 +544,23 @@ namespace ReactiveCollections.Tests
             Assert.That(m[0], Is.EqualTo(10));
             Assert.That(m[1], Is.EqualTo(1));
         }
+
+        [Test]
+        public void Dispose_MergeNode_UnsubscribesFromBothSources()
+        {
+            var a = new ObservableList<int>();
+            var b = new ObservableList<int>();
+            var merge = a.Merge(b);
+
+            bool received = false;
+            merge.Changed += _ => received = true;
+
+            merge.Dispose();
+
+            a.Add(1);
+            b.Add(1);
+
+            Assert.That(received, Is.False);
+        }
     }
 }

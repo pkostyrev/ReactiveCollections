@@ -488,24 +488,6 @@ namespace ReactiveCollections.Tests
         }
 
         [Test]
-        public void Dispose_MergeNode_UnsubscribesFromBothSources()
-        {
-            var a = new ObservableList<int>();
-            var b = new ObservableList<int>();
-            var merge = a.Merge(b);
-
-            bool received = false;
-            merge.Changed += _ => received = true;
-
-            merge.Dispose();
-
-            a.Add(1);
-            b.Add(1);
-
-            Assert.That(received, Is.False);
-        }
-
-        [Test]
         public void Dispose_SourceIsNotDisposed()
         {
             var source = new ObservableList<int>();

@@ -50,6 +50,9 @@ ReactiveCollections — не копия `ObservableCollection<T>` и не ана
 | `ProjectionNode<TSource, TResult>` | База для одноисточниковых проекций | Filter / Select |
 | `KeyedProjectionNode<TKey, TSource, TResult>` | Общий механизм индексированных групп | GroupBy |
 | `MergeNode<T>` | Объединение двух живых источников | Concat двух списков |
+| `ValueChange<T>` | Описание изменения одиночного значения | OldValue → NewValue |
+| `IObservableValue<T>` | Контракт реактивного одиночного значения | Value + Changed |
+| `ObservableValue<T>` | Корневое реактивное значение | Set / Update |
 
 Поток изменений:
 
@@ -143,6 +146,24 @@ var views = source.Select(
 var groups = source.GroupBy(p => p.TeamId);
 
 var merged = first.Merge(second);
+```
+
+### 3.5 `ObservableValue<T>`
+
+Реактивное одиночное значение. Аналог `ObservableList<T>` для одного `T`.
+
+```csharp
+var hp = new ObservableValue<int>(100);
+
+hp.Changed += c => Console.WriteLine($"HP: {c.OldValue} -> {c.NewValue}");
+
+hp.Set(80);    // событие: 100 -> 80
+hp.Set(80);    // событие: 80 -> 80 (Set райзит всегда)
+
+// mutable-модель:
+var player = new ObservableValue<Player>(p);
+p.Hp = 50;
+player.Update();   // событие с OldValue == NewValue == p
 ```
 
 ---
