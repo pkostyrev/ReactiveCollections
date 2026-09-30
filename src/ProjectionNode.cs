@@ -116,13 +116,26 @@ namespace ReactiveCollections
         /// Обработчик событий источника. Диспетчеризует по <see cref="Change{T}.Type"/>.
         /// </summary>
         /// <remarks>
-        /// <c>switch</c> без ветки <c>default</c> — сознательно: если в
-        /// <see cref="ChangeType"/> появится новый член, компилятор об этом
-        /// не сообщит, но обработка явно требует обновления. Пока новых членов
-        /// нет, поведение безопасно.
+        /// <para>
+        /// <see cref="ChangeType.Batch"/> разворачивается рекурсивно: каждое
+        /// вложенное изменение обрабатывается как обычное. Это значит, что
+        /// <c>OnAdd</c>/<c>OnRemove</c>/... не знают о том, что произошло
+        /// внутри батча — они получают отдельные события.
+        /// </para>
+        /// <para>
+        /// <see cref="ChangeType.Reset"/> внутри батча не разворачивается —
+        /// это атомарное событие.
+        /// </para>
         /// </remarks>
         private void OnSourceChanged(Change<TSource> change)
         {
+            if (change.Type == ChangeType.Batch)
+            {
+                foreach (var inner in change.Changes!)
+                    OnSourceChanged(inner);
+                return;
+            }
+
             switch (change.Type)
             {
                 case ChangeType.Add:

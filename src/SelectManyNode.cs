@@ -141,6 +141,13 @@ namespace ReactiveCollections
 
         private void OnSourceChanged(Change<TSource> change)
         {
+            if (change.Type == ChangeType.Batch)
+            {
+                foreach (var inner in change.Changes!)
+                    OnSourceChanged(inner);
+                return;
+            }
+
             switch (change.Type)
             {
                 case ChangeType.Add:
@@ -235,6 +242,13 @@ namespace ReactiveCollections
 
         private void OnInnerChanged(Subscription subscription, Change<TResult> change)
         {
+            if (change.Type == ChangeType.Batch)
+            {
+                foreach (var inner in change.Changes!)
+                    OnInnerChanged(subscription, inner);
+                return;
+            }
+
             switch (change.Type)
             {
                 case ChangeType.Add:

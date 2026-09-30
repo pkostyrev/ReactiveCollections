@@ -117,6 +117,7 @@ ReactiveCollections — не копия ObservableCollection<T> и не анал
 | Change<T>.Update(item) | Элемент изменился, ссылка та же |
 | Change<T>.Replace(old, new) | Один экземпляр заменён другим |
 | Change<T>.Reset() | Содержимое могло измениться целиком |
+| `Change<T>.Batch(changes)` | Группа изменений (для режима батчинга) |
 
 ### 3.2 IObservableList<T>
 
@@ -139,6 +140,23 @@ IDisposable появился в версии, где узлы начали от�
     list.Update(p);          // для mutable-объектов: p изменился внутри
     list.Replace(p, q);
     list.Reset();            // очистить
+
+Режим батчинга — накопление изменений и их публикация одним событием:
+
+    using (list.Batch())
+    {
+        list.Add(p1);
+        list.Add(p2);
+        list.Add(p3);
+    }
+    // одно событие: Change<T>.Batch([Add p1, Add p2, Add p3])
+
+    Альтернатива без using:
+
+        list.BeginUpdate();
+        list.Add(p1);
+        list.Add(p2);
+        list.EndUpdate();
 
 ### 3.4 Extension-методы
 
@@ -307,7 +325,7 @@ ObservableNode.Raise вызывает всех подписчиков, соби�
 
 Здесь собраны неочевидные детали поведения, которые важно знать при работе с узлами.
 
-OnReplace и OldItem
+#### OnReplace и OldItem
 
 Базовый ProjectionNode.OnReplace проверяет, что Change<T>.OldItem заполнен,
 и бросает InvalidOperationException, если это не так. Однако наследники,
@@ -322,28 +340,28 @@ OnReplace и OldItem
 и потенциально потере изменения. В будущем стоит вынести проверку
 в общий защищённый метод и вызывать его во всех переопределениях.
 
-Reset в MergeNode
+#### Reset в MergeNode
 
 MergeNode обрабатывает ChangeType.Reset от любого источника через полную
 пересборку обоих источников. Это даёт Reset + N×Add событий, даже если
 второй источник не менялся. Оптимизация (пересобирать только изменившийся
 источник) не реализована.
 
-«Момент пустоты» при переезде в KeyedProjectionNode
+#### «Момент пустоты» при переезде в KeyedProjectionNode
 
 При ChangeType.Update, если ключ элемента изменился, KeyedProjectionNode
 сначала удаляет элемент из старой группы, а затем добавляет в новую.
 Между этими двумя операциями элемент отсутствует в обеих группах.
 Подписчики group.Items.Changed могут это заметить.
 
-ResetInternal на пустой коллекции не райзит событие
+#### ResetInternal на пустой коллекции не райзит событие
 
 ObservableNode.ResetInternal возвращает false и не публикует ChangeType.Reset,
 если Items уже пуст. Это значит, что Reset на пустой коллекции неотличим
 от «ничего не произошло» — ни для источника, ни для узлов, которые на него
 полагаются.
 
-Порядок событий в цепочке
+#### Порядок событий в цепочке
 
 ObservableNode.Raise вызывает подписчиков синхронно и вложенно.
 Первый подписчик filter.Changed — это SelectNode.OnSourceChanged,
@@ -366,7 +384,7 @@ ObservableNode.Raise вызывает подписчиков синхронно 
 подписчиков. Альтернатива — очередь событий с отложенной обработкой —
 требует планировщика и на текущем этапе не реализуется.
 
-Reset вложенной коллекции в SelectMany
+#### Reset вложенной коллекции в SelectMany
 
 При ChangeType.Reset от вложенной коллекции SelectManyNode удаляет весь
 вклад этой Subscription из плоского результата, а затем добавляет элементы
@@ -403,6 +421,44 @@ list.Remove(...) (станет 2) или list.Reset() (станет 0).
 4.6.2+, .NET Core, .NET 5+, Unity 2018.1+, Xamarin и другие платформы,
 поддерживающие .NET Standard 2.0. Никаких платформо-специфичных
 зависимостей нет.
+
+### 4.12 Батчинг не каскадируется
+
+ObservableList<T> поддерживает режим батчинга: BeginUpdate/EndUpdate
+или using (list.Batch()) накапливают изменения и публикуют их одним
+событием ChangeType.Batch.
+
+Важно: батчинг работает только на источнике. Узлы (Filter, Select,
+GroupBy, Merge, SelectMany) при получении ChangeType.Batch разворачивают
+его в отдельные события для своих подписчиков.
+
+Пример:
+
+    var filtered = source.Filter(x => x > 0);
+    var groups = filtered.GroupBy(x => x % 2);
+
+    var sourceEvents = new List<Change<int>>();
+    var groupEvents = new List<Change<Group<int, int>>>();
+
+    source.Changed += c => sourceEvents.Add(c);
+    groups.Changed  += c => groupEvents.Add(c);
+
+    using (source.Batch())
+    {
+        source.Add(1);
+        source.Add(2);
+    }
+
+    // sourceEvents: 1 событие (Batch с двумя Add)
+    // groupEvents: 2 события (по одному на группу)
+
+Это осознанное решение. Каскадный батчинг — когда Batch распространяется
+через всю цепочку — требует координации между узлами и меняет их
+внутреннюю модель. Если появится потребность, это будет добавлено
+поверх текущего дизайна.
+
+Вложенные батчи запрещены: BeginBatchMode внутри уже открытого батча
+бросает InvalidOperationException.
 
 ---
 
@@ -539,12 +595,14 @@ this-параметра, поэтому на IObservableList<T> вызов Count
 
 ## 7. Дорожная карта
 
-Текущий этап — SelectMany завершён.
+Текущий этап — батчинг завершён (без каскадирования).
 
 Дальше — по приоритету:
 
 1. OrderBy / Move — требуют позиционной семантики в Change<T>.
-2. Батчинг — BeginUpdate / EndUpdate или batch-события.
+2. Каскадный батчинг — если появится потребность в уменьшении
+   событий на всех уровнях цепочки (сейчас батч работает только
+   на источнике).
 3. Иерархия Change<T> — если понадобятся null/default как
    осмысленные значения или Move.
 

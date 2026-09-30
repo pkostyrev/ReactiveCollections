@@ -37,6 +37,16 @@ namespace ReactiveCollections
         protected readonly List<T> Items = new();
 
         /// <summary>
+        /// Буфер изменений при активном батче. <c>null</c>, если батч не открыт.
+        /// </summary>
+        /// <remarks>
+        /// Пока буфер не <c>null</c>, все вызовы <see cref="Raise"/> складывают
+        /// изменения сюда, а не райзят подписчикам. При закрытии батча
+        /// накопленные изменения уходят одним <see cref="ChangeType.Batch"/>.
+        /// </remarks>
+        private List<Change<T>>? _batchBuffer;
+
+        /// <summary>
         /// Флаг «узел освобождён». Устанавливается в <see cref="Dispose"/>.
         /// </summary>
         private bool _disposed;
@@ -85,6 +95,10 @@ namespace ReactiveCollections
                 return;
 
             _disposed = true;
+
+            // Если батч остался открытым — просто выбрасываем буфер.
+            // Пользователь, забывший EndUpdate, не получит события.
+            _batchBuffer = null;
 
             DisposeCore();
         }
@@ -273,7 +287,26 @@ namespace ReactiveCollections
         }
 
         /// <summary>
-        /// Публикует изменение всем подписчикам <see cref="Changed"/>.
+        /// Публикует изменение всем подписчикам <see cref="Changed"/>
+        /// или складывает его в буфер, если открыт батч.
+        /// </summary>
+        /// <remarks>
+        /// См. <see cref="RaiseImmediate"/> о поведении при отсутствии батча.
+        /// </remarks>
+        protected void Raise(Change<T> change)
+        {
+            if (_batchBuffer is not null)
+            {
+                _batchBuffer.Add(change);
+                return;
+            }
+
+            RaiseImmediate(change);
+        }
+
+        /// <summary>
+        /// Публикует изменение всем подписчикам <see cref="Changed"/> немедленно,
+        /// минуя буфер.
         /// </summary>
         /// <remarks>
         /// <para>
@@ -286,7 +319,7 @@ namespace ReactiveCollections
         /// где первое исключение прерывает обход — см. README, раздел 4.8.
         /// </para>
         /// </remarks>
-        protected void Raise(Change<T> change)
+        protected void RaiseImmediate(Change<T> change)
         {
             var handler = Changed;
             if (handler == null)
@@ -313,6 +346,55 @@ namespace ReactiveCollections
                 throw errors[0];
 
             throw new AggregateException(errors);
+        }
+
+        /// <summary>
+        /// Открывает режим батчинга: последующие изменения копятся в буфере
+        /// и райзятся одним <see cref="ChangeType.Batch"/> при
+        /// <see cref="EndBatchMode"/>.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// Если батч уже открыт. Вложенные батчи запрещены.
+        /// </exception>
+        /// <remarks>
+        /// Метод используется только <see cref="ObservableList{T}"/>.
+        /// Проекции (узлы) не должны открывать батч — они разворачивают
+        /// приходящий <see cref="ChangeType.Batch"/> в отдельные события.
+        /// </remarks>
+        protected void BeginBatchMode()
+        {
+            if (_batchBuffer is not null)
+                throw new InvalidOperationException(
+                    "Batch is already in progress. Nested batches are not allowed.");
+
+            _batchBuffer = new List<Change<T>>();
+        }
+
+        /// <summary>
+        /// Закрывает режим батчинга и райзит накопленные изменения одним
+        /// <see cref="ChangeType.Batch"/>, если буфер не пуст.
+        /// </summary>
+        /// <returns>
+        /// <c>true</c>, если событие было райзнуто; <c>false</c>, если буфер пуст.
+        /// </returns>
+        /// <exception cref="InvalidOperationException">
+        /// Если батч не был открыт.
+        /// </exception>
+        protected bool EndBatchMode()
+        {
+            if (_batchBuffer is null)
+                throw new InvalidOperationException(
+                    "Batch is not in progress.");
+
+            var buffer = _batchBuffer;
+            _batchBuffer = null;
+
+            if (buffer.Count == 0)
+                return false;
+
+            RaiseImmediate(Change<T>.Batch(buffer));
+
+            return true;
         }
     }
 }

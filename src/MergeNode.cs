@@ -173,6 +173,13 @@ namespace ReactiveCollections
         /// </remarks>
         private void ApplyChange(Change<T> change, int sourceId)
         {
+            if (change.Type == ChangeType.Batch)
+            {
+                foreach (var inner in change.Changes!)
+                    ApplyChange(inner, sourceId);
+                return;
+            }
+
             switch (change.Type)
             {
                 case ChangeType.Add:
@@ -188,7 +195,11 @@ namespace ReactiveCollections
                     break;
 
                 case ChangeType.Replace:
-                    ReplaceFromSource(change.OldItem!, change.Item, sourceId);
+                    if (change.OldItem is null)
+                        throw new InvalidOperationException(
+                            "Change.Replace was raised without OldItem.");
+
+                    ReplaceFromSource(change.OldItem, change.Item, sourceId);
                     break;
 
                 case ChangeType.Reset:

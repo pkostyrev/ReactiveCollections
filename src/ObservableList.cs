@@ -9,10 +9,9 @@ namespace ReactiveCollections
     /// <typeparam name="T">Тип элемента коллекции.</typeparam>
     /// <remarks>
     /// <para>
-    /// Все остальные узлы (<see cref="FilterNode{T}"/>,
-    /// <see cref="SelectNode{TSource, TResult}"/>, <see cref="GroupNode{TKey, TSource}"/>,
-    /// <see cref="MergeNode{T}"/>) строятся поверх <see cref="IObservableList{T}"/>
-    /// и не могут быть созданы пользователем напрямую как источники.
+    /// Поддерживает режим батчинга: накопление изменений и их публикация
+    /// одним <see cref="ChangeType.Batch"/>. См. <see cref="Batch"/>,
+    /// <see cref="BeginUpdate"/>, <see cref="EndUpdate"/>.
     /// </para>
     /// <para>
     /// Коллекция не является потокобезопасной — см. README, раздел 4.7.
@@ -21,96 +20,105 @@ namespace ReactiveCollections
     public class ObservableList<T> : ObservableNode<T>
     {
         /// <summary>
-        /// Добавляет элемент в конец коллекции и публикует <see cref="ChangeType.Add"/>.
+        /// Обёртка <see cref="IDisposable"/>, закрывающая батч при выходе из
+        /// <c>using</c>-блока.
         /// </summary>
+        private sealed class BatchScope : IDisposable
+        {
+            private readonly ObservableList<T> _owner;
+            private bool _disposed;
+
+            public BatchScope(ObservableList<T> owner)
+            {
+                _owner = owner;
+            }
+
+            public void Dispose()
+            {
+                if (_disposed)
+                    return;
+
+                _disposed = true;
+                _owner.EndBatchMode();
+            }
+        }
+
+        /// <summary>Добавляет элемент в конец коллекции и публикует <see cref="ChangeType.Add"/>.</summary>
         /// <returns>Всегда <c>true</c>.</returns>
-        public bool Add(T item)
-        {
-            return AddInternal(item);
-        }
+        public bool Add(T item) => AddInternal(item);
 
-        /// <summary>
-        /// Удаляет первый элемент, равный <paramref name="item"/> по
-        /// <see cref="EqualityComparer{T}.Default"/>, и публикует <see cref="ChangeType.Remove"/>.
-        /// </summary>
+        /// <summary>Удаляет первый элемент, равный <paramref name="item"/>, и публикует <see cref="ChangeType.Remove"/>.</summary>
         /// <returns><c>true</c>, если элемент найден и удалён; иначе <c>false</c>.</returns>
-        /// <remarks>
-        /// При наличии дубликатов по <see cref="object.Equals(object)"/> неопределённо,
-        /// какой именно экземпляр уйдёт — см. README, раздел 4.3.
-        /// </remarks>
-        public bool Remove(T item)
-        {
-            return RemoveInternal(item);
-        }
+        public bool Remove(T item) => RemoveInternal(item);
 
-        /// <summary>
-        /// Заменяет первый элемент, равный <paramref name="oldItem"/>, на <paramref name="newItem"/>.
-        /// </summary>
+        /// <summary>Заменяет первый элемент, равный <paramref name="oldItem"/>, на <paramref name="newItem"/>.</summary>
         /// <returns><c>true</c>, если <paramref name="oldItem"/> найден; иначе <c>false</c>.</returns>
-        /// <remarks>
-        /// Публикует <see cref="ChangeType.Replace"/>. Используйте, когда в коллекции
-        /// появляется <b>другой</b> объект вместо существующего. Для изменения полей
-        /// того же объекта — <see cref="Update"/>.
-        /// </remarks>
-        public bool Replace(T oldItem, T newItem)
-        {
-            return ReplaceInternal(oldItem, newItem);
-        }
+        public bool Replace(T oldItem, T newItem) => ReplaceInternal(oldItem, newItem);
 
-        /// <summary>
-        /// Публикует <see cref="ChangeType.Update"/> для элемента, если он присутствует в коллекции.
-        /// </summary>
+        /// <summary>Публикует <see cref="ChangeType.Update"/> для элемента, если он присутствует в коллекции.</summary>
         /// <returns><c>true</c>, если элемент найден; иначе <c>false</c>.</returns>
-        /// <remarks>
-        /// <para>
-        /// Ничего не мутирует — предполагается, что объект уже изменён пользователем
-        /// (mutable-модель). Метод служит только для оповещения подписчиков.
-        /// </para>
-        /// <para>
-        /// Старое значение не сохраняется — подписчики видят уже изменённый объект.
-        /// Для immutable <typeparamref name="T"/> используйте <see cref="Replace"/> —
-        /// см. README, раздел 4.2.
-        /// </para>
-        /// </remarks>
-        public bool Update(T item)
-        {
-            return UpdateInternal(item);
-        }
+        public bool Update(T item) => UpdateInternal(item);
 
-        /// <summary>
-        /// Полностью очищает коллекцию и публикует <see cref="ChangeType.Reset"/>.
-        /// </summary>
+        /// <summary>Полностью очищает коллекцию и публикует <see cref="ChangeType.Reset"/>.</summary>
         /// <returns><c>true</c>, если коллекция была непустой; иначе <c>false</c>.</returns>
+        public bool Reset() => ResetInternal();
+
+        /// <summary>
+        /// Открывает режим батчинга на время жизни <see cref="IDisposable"/>.
+        /// </summary>
+        /// <returns>
+        /// <see cref="IDisposable"/>, при вызове <c>Dispose</c> закрывающий батч
+        /// и райзящий накопленные изменения одним <see cref="ChangeType.Batch"/>.
+        /// </returns>
+        /// <exception cref="InvalidOperationException">
+        /// Если батч уже открыт.
+        /// </exception>
         /// <remarks>
         /// <para>
-        /// Событие не райзится, если коллекция уже пуста — <c>Reset</c> на пустой
-        /// коллекции неотличим от «ничего не произошло».
+        /// Предпочтительный способ батчинга — через <c>using</c>:
         /// </para>
+        /// <code>
+        /// using (list.Batch())
+        /// {
+        ///     list.Add(1);
+        ///     list.Add(2);
+        /// }
+        /// // одно Change&lt;T&gt;.Batch-событие с двумя Add
+        /// </code>
         /// <para>
-        /// В текущей реализации <c>Reset</c> означает полную очистку, а не
-        /// WPF-семантику «содержимое могло измениться целиком» — см. README,
-        /// раздел 4.3.
+        /// Все изменения, выполненные внутри блока, копятся в буфере.
+        /// Подписчики <see cref="ObservableNode{T}.Changed"/> не получают
+        /// событий до закрытия батча.
         /// </para>
         /// </remarks>
-        public bool Reset()
+        public IDisposable Batch()
         {
-            return ResetInternal();
+            BeginBatchMode();
+            return new BatchScope(this);
         }
 
         /// <summary>
-        /// Источник не «умирает» от <see cref="Dispose"/> — это no-op.
+        /// Открывает режим батчинга. Парный метод — <see cref="EndUpdate"/>.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// Если батч уже открыт.
+        /// </exception>
         /// <remarks>
-        /// <see cref="ObservableList{T}"/> — корневой узел, он не подписан ни на
-        /// что и не удерживает другие узлы. <c>Dispose</c> на нём не имеет эффекта,
-        /// но реализован для единообразия с <see cref="IObservableList{T}"/>.
-        /// Чтобы удалить цепочку проекций, вызови <c>Dispose</c> на каждом узле
-        /// цепочки — сам источник при этом останется живым.
+        /// Предпочитайте <see cref="Batch"/> — он закрывает батч даже при
+        /// исключении. Этот метод — для случаев, когда <c>using</c> неудобен.
         /// </remarks>
-        protected override void DisposeCore()
-        {
-            // Намеренно пусто — источник ничего не удерживает.
-            base.DisposeCore();
-        }
+        public void BeginUpdate() => BeginBatchMode();
+
+        /// <summary>
+        /// Закрывает режим батчинга и райзит накопленные изменения одним
+        /// <see cref="ChangeType.Batch"/>.
+        /// </summary>
+        /// <returns>
+        /// <c>true</c>, если событие было райзнуто; <c>false</c>, если буфер пуст.
+        /// </returns>
+        /// <exception cref="InvalidOperationException">
+        /// Если батч не был открыт.
+        /// </exception>
+        public bool EndUpdate() => EndBatchMode();
     }
 }
