@@ -148,5 +148,39 @@ namespace ReactiveCollections
         {
             return new MergeNode<T>(first, second);
         }
+
+        /// <summary>
+        /// Разворачивает каждый элемент источника в его вложенную коллекцию,
+        /// объединяя элементы всех коллекций в один плоский живой список.
+        /// </summary>
+        /// <typeparam name="TSource">Тип элемента источника.</typeparam>
+        /// <typeparam name="TResult">Тип элемента вложенной коллекции.</typeparam>
+        /// <param name="source">Источник. Не может быть <c>null</c>.</param>
+        /// <param name="selector">
+        /// Селектор вложенной коллекции. Не может быть <c>null</c>.
+        /// Не должен возвращать <c>null</c>.
+        /// </param>
+        /// <returns>Новый <see cref="SelectManyNode{TSource, TResult}"/>.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// Если <paramref name="source"/> или <paramref name="selector"/> — <c>null</c>.
+        /// </exception>
+        /// <remarks>
+        /// <para>
+        /// Каждый элемент источника разворачивается один раз, при добавлении.
+        /// При <c>Update</c> источника селектор вызывается повторно: если он
+        /// вернул ту же самую ссылку на внутреннюю коллекцию — ничего не
+        /// происходит; если новую — подписка переключается.
+        /// </para>
+        /// <para>
+        /// Одинаковые по <c>Equals</c> элементы из разных вложенных коллекций
+        /// различаются — учёт ведётся по паре «элемент + его источник».
+        /// </para>
+        /// </remarks>
+        public static SelectManyNode<TSource, TResult> SelectMany<TSource, TResult>(
+            this IObservableList<TSource> source,
+            Func<TSource, IObservableList<TResult>> selector)
+        {
+            return new SelectManyNode<TSource, TResult>(source, selector);
+        }
     }
 }

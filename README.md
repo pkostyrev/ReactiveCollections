@@ -51,6 +51,7 @@ ReactiveCollections — не копия ObservableCollection<T> и не анал
 | ProjectionNode<TSource, TResult> | База для одноисточниковых проекций | Filter / Select |
 | KeyedProjectionNode<TKey, TSource, TResult> | Общий механизм индексированных групп | GroupBy |
 | MergeNode<T> | Объединение двух живых источников | Concat двух списков |
+| SelectManyNode<TSource, TResult> | Flattening вложенных реактивных коллекций | Concat всех вложенных Items |
 | ValueChange<T> | Описание изменения одиночного значения | OldValue → NewValue |
 | IObservableValue<T> | Контракт реактивного одиночного значения | Value + Changed |
 | ObservableValue<T> | Корневое реактивное значение | Set / Update |
@@ -150,6 +151,8 @@ IDisposable появился в версии, где узлы начали от�
     var groups = source.GroupBy(p => p.TeamId);
 
     var merged = first.Merge(second);
+
+    var flat = players.SelectMany(p => p.Items);
 
 ### 3.5 ObservableValue<T>
 
@@ -363,6 +366,20 @@ ObservableNode.Raise вызывает подписчиков синхронно 
 подписчиков. Альтернатива — очередь событий с отложенной обработкой —
 требует планировщика и на текущем этапе не реализуется.
 
+Reset вложенной коллекции в SelectMany
+
+При ChangeType.Reset от вложенной коллекции SelectManyNode удаляет весь
+вклад этой Subscription из плоского результата, а затем добавляет элементы
+заново из текущего состояния коллекции. В результате:
+
+- элементы других вложенных коллекций сохраняют свои относительные позиции;
+- элементы сброшенной коллекции оказываются в конце результата;
+- их позиция относительно других элементов может измениться.
+
+Это осознанное поведение: вставка «на прежнее место» потребовала бы
+InsertAtInternal, которого пока нет в базе. На текущем этапе это
+не считается проблемой.
+
 ### 4.10 Агрегаты: событие только при изменении значения
 
 В отличие от ObservableValue<T>.Set (райзит всегда) и
@@ -522,14 +539,13 @@ this-параметра, поэтому на IObservableList<T> вызов Count
 
 ## 7. Дорожная карта
 
-Текущий этап — агрегаты завершены.
+Текущий этап — SelectMany завершён.
 
 Дальше — по приоритету:
 
 1. OrderBy / Move — требуют позиционной семантики в Change<T>.
-2. SelectMany — переиспользуя модель Entry + Subscription.
-3. Батчинг — BeginUpdate / EndUpdate или batch-события.
-4. Иерархия Change<T> — если понадобятся null/default как
+2. Батчинг — BeginUpdate / EndUpdate или batch-события.
+3. Иерархия Change<T> — если понадобятся null/default как
    осмысленные значения или Move.
 
 ---
