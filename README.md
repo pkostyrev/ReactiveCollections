@@ -189,9 +189,6 @@ this-параметра, поэтому Count() на IObservableList<T> разр
 | ObserveMax(sel) | Max(sel) | IObservableValue<T> |
 | ObserveAverage(sel) | Average(sel) | IObservableValue<double> |
 
-Пока реализованы ObserveCount, ObserveAny (с предикатом и без),
-ObserveAll. Остальные — в дорожной карте.
-
 Поток изменений:
 
     IObservableList<T>
@@ -525,16 +522,14 @@ this-параметра, поэтому на IObservableList<T> вызов Count
 
 ## 7. Дорожная карта
 
-Текущий этап — агрегаты (числовые).
+Текущий этап — агрегаты завершены.
 
 Дальше — по приоритету:
 
-1. Агрегаты (числовые): ObserveSum, ObserveMin, ObserveMax,
-   ObserveAverage — поверх AggregateNode<TSource, TResult>.
-2. OrderBy / Move — требуют позиционной семантики в Change<T>.
-3. SelectMany — переиспользуя модель Entry + Subscription.
-4. Батчинг — BeginUpdate / EndUpdate или batch-события.
-5. Иерархия Change<T> — если понадобятся null/default как
+1. OrderBy / Move — требуют позиционной семантики в Change<T>.
+2. SelectMany — переиспользуя модель Entry + Subscription.
+3. Батчинг — BeginUpdate / EndUpdate или batch-события.
+4. Иерархия Change<T> — если понадобятся null/default как
    осмысленные значения или Move.
 
 ---

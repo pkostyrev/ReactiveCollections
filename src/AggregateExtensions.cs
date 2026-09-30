@@ -323,5 +323,120 @@ namespace ReactiveCollections
             this IObservableList<TSource> source,
             Func<TSource, decimal> selector)
             => new MaxWithSelectorNode<TSource, decimal>(source, selector);
+
+        // -------------------------------------------------------------------
+        // ObserveAverage (без селектора)
+        // -------------------------------------------------------------------
+
+        /// <summary>
+        /// Возвращает живое значение: среднее арифметическое элементов источника
+        /// или <c>null</c>, если источник пуст.
+        /// </summary>
+        /// <remarks>
+        /// Для <see cref="int"/> и <see cref="long"/> аккумулятор — <see cref="long"/>,
+        /// результат — <see cref="double"/>. Для <see cref="float"/> аккумулятор —
+        /// <see cref="double"/>, результат — <see cref="float"/>. Это соответствует
+        /// правилам LINQ.
+        /// </remarks>
+        public static IObservableValue<double?> ObserveAverage(this IObservableList<int> source)
+            => new AverageNode<int, long, double>(
+                source,
+                zero: 0L,
+                add: (s, x) => s + x,
+                average: (s, c) => (double)s / c);
+
+        /// <inheritdoc cref="ObserveAverage(IObservableList{int})"/>
+        public static IObservableValue<double?> ObserveAverage(this IObservableList<long> source)
+            => new AverageNode<long, long, double>(
+                source,
+                zero: 0L,
+                add: (s, x) => s + x,
+                average: (s, c) => (double)s / c);
+
+        /// <inheritdoc cref="ObserveAverage(IObservableList{int})"/>
+        public static IObservableValue<float?> ObserveAverage(this IObservableList<float> source)
+            => new AverageNode<float, double, float>(
+                source,
+                zero: 0d,
+                add: (s, x) => s + x,
+                average: (s, c) => (float)(s / c));
+
+        /// <inheritdoc cref="ObserveAverage(IObservableList{int})"/>
+        public static IObservableValue<double?> ObserveAverage(this IObservableList<double> source)
+            => new AverageNode<double, double, double>(
+                source,
+                zero: 0d,
+                add: (s, x) => s + x,
+                average: (s, c) => s / c);
+
+        /// <inheritdoc cref="ObserveAverage(IObservableList{int})"/>
+        public static IObservableValue<decimal?> ObserveAverage(this IObservableList<decimal> source)
+            => new AverageNode<decimal, decimal, decimal>(
+                source,
+                zero: 0m,
+                add: (s, x) => s + x,
+                average: (s, c) => s / c);
+
+        // -------------------------------------------------------------------
+        // ObserveAverage (с селектором)
+        // -------------------------------------------------------------------
+
+        /// <summary>
+        /// Возвращает живое значение: среднее арифметическое значений, выбранных
+        /// из элементов источника, или <c>null</c>, если источник пуст.
+        /// </summary>
+        public static IObservableValue<double?> ObserveAverage<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, int> selector)
+            => new AverageWithSelectorNode<TSource, int, long, double>(
+                source,
+                selector,
+                zero: 0L,
+                add: (s, x) => s + x,
+                average: (s, c) => (double)s / c);
+
+        /// <inheritdoc cref="ObserveAverage{TSource}(IObservableList{TSource}, Func{TSource, int})"/>
+        public static IObservableValue<double?> ObserveAverage<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, long> selector)
+            => new AverageWithSelectorNode<TSource, long, long, double>(
+                source,
+                selector,
+                zero: 0L,
+                add: (s, x) => s + x,
+                average: (s, c) => (double)s / c);
+
+        /// <inheritdoc cref="ObserveAverage{TSource}(IObservableList{TSource}, Func{TSource, int})"/>
+        public static IObservableValue<float?> ObserveAverage<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, float> selector)
+            => new AverageWithSelectorNode<TSource, float, double, float>(
+                source,
+                selector,
+                zero: 0d,
+                add: (s, x) => s + x,
+                average: (s, c) => (float)(s / c));
+
+        /// <inheritdoc cref="ObserveAverage{TSource}(IObservableList{TSource}, Func{TSource, int})"/>
+        public static IObservableValue<double?> ObserveAverage<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, double> selector)
+            => new AverageWithSelectorNode<TSource, double, double, double>(
+                source,
+                selector,
+                zero: 0d,
+                add: (s, x) => s + x,
+                average: (s, c) => s / c);
+
+        /// <inheritdoc cref="ObserveAverage{TSource}(IObservableList{TSource}, Func{TSource, int})"/>
+        public static IObservableValue<decimal?> ObserveAverage<TSource>(
+            this IObservableList<TSource> source,
+            Func<TSource, decimal> selector)
+            => new AverageWithSelectorNode<TSource, decimal, decimal, decimal>(
+                source,
+                selector,
+                zero: 0m,
+                add: (s, x) => s + x,
+                average: (s, c) => s / c);
     }
 }
