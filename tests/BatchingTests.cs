@@ -27,11 +27,13 @@ namespace ReactiveCollections.Tests
             }
 
             Assert.That(events.Count, Is.EqualTo(1));
-            Assert.That(events[0].Type, Is.EqualTo(ChangeType.Batch));
-            Assert.That(events[0].Changes!.Count, Is.EqualTo(2));
-            Assert.That(events[0].Changes![0].Type, Is.EqualTo(ChangeType.Add));
-            Assert.That(events[0].Changes![0].Item, Is.EqualTo(1));
-            Assert.That(events[0].Changes![1].Item, Is.EqualTo(2));
+            Assert.That(events[0], Is.TypeOf<BatchChange<int>>());
+
+            var batch = (BatchChange<int>)events[0];
+            Assert.That(batch.Changes.Count, Is.EqualTo(2));
+            Assert.That(batch.Changes[0], Is.TypeOf<AddChange<int>>());
+            Assert.That(((AddChange<int>)batch.Changes[0]).Item, Is.EqualTo(1));
+            Assert.That(((AddChange<int>)batch.Changes[1]).Item, Is.EqualTo(2));
         }
 
         [Test]
@@ -66,14 +68,20 @@ namespace ReactiveCollections.Tests
             }
 
             Assert.That(events.Count, Is.EqualTo(1));
-            Assert.That(events[0].Type, Is.EqualTo(ChangeType.Batch));
-            Assert.That(events[0].Changes!.Select(c => c.Type),
-                Is.EqualTo(new[] {
-                    ChangeType.Add,
-                    ChangeType.Remove,
-                    ChangeType.Update,
-                    ChangeType.Replace
-                }));
+            Assert.That(events[0], Is.TypeOf<BatchChange<int>>());
+
+            var batch = (BatchChange<int>)events[0]; 
+            Assert.That(batch.Changes.Count, Is.EqualTo(4));
+
+            var add = (AddChange<int>)batch.Changes[0];
+            var remove = (RemoveChange<int>)batch.Changes[1];
+            var update = (UpdateChange<int>)batch.Changes[2];
+            var replace = (ReplaceChange<int>)batch.Changes[3];
+
+            Assert.That(add.Index, Is.EqualTo(1));
+            Assert.That(remove.Index, Is.EqualTo(0));
+            Assert.That(update.Index, Is.EqualTo(0));
+            Assert.That(replace.Index, Is.EqualTo(0));
         }
 
         [Test]
@@ -94,6 +102,58 @@ namespace ReactiveCollections.Tests
             Assert.That(observedCount, Is.EqualTo(3));
         }
 
+        [Test]
+        public void Batch_PreservesIndicesOfInnerChanges()
+        {
+            var list = new ObservableList<int>();
+            var events = new List<Change<int>>();
+            list.Changed += c => events.Add(c);
+
+            using (list.Batch())
+            {
+                list.Add(10);
+                list.Add(20);
+                list.AddAt(0, 5);
+            }
+
+            var batch = (BatchChange<int>)events[0];
+
+            Assert.That(((AddChange<int>)batch.Changes[0]).Index, Is.EqualTo(0));
+            Assert.That(((AddChange<int>)batch.Changes[1]).Index, Is.EqualTo(1));
+            Assert.That(((AddChange<int>)batch.Changes[2]).Index, Is.EqualTo(0));
+            Assert.That(((AddChange<int>)batch.Changes[2]).Item, Is.EqualTo(5));
+        }
+
+        [Test]
+        public void Batch_PreservesOperationTimeIndices()
+        {
+            var list = new ObservableList<int>();
+            list.Add(10);
+            list.Add(20);
+
+            BatchChange<int>? batch = null;
+            list.Changed += c => batch = (BatchChange<int>)c;
+
+            using (list.Batch())
+            {
+                list.RemoveAt(0);   // [20],     index=0
+                list.Add(30);       // [20,30],  index=1
+                list.Move(1, 0);    // [30,20],  1 -> 0
+            }
+
+            Assert.That(batch, Is.Not.Null);
+            Assert.That(batch!.Changes.Count, Is.EqualTo(3));
+
+            var remove = (RemoveChange<int>)batch.Changes[0];
+            var add = (AddChange<int>)batch.Changes[1];
+            var move = (MoveChange<int>)batch.Changes[2];
+
+            Assert.That(remove.Index, Is.EqualTo(0));
+            Assert.That(add.Index, Is.EqualTo(1));
+            Assert.That(move.FromIndex, Is.EqualTo(1));
+            Assert.That(move.ToIndex, Is.EqualTo(0));
+        }
+
         // -------------------------------------------------------------------
         // BeginUpdate / EndUpdate
         // -------------------------------------------------------------------
@@ -111,8 +171,8 @@ namespace ReactiveCollections.Tests
             list.EndUpdate();
 
             Assert.That(events.Count, Is.EqualTo(1));
-            Assert.That(events[0].Type, Is.EqualTo(ChangeType.Batch));
-            Assert.That(events[0].Changes!.Count, Is.EqualTo(2));
+            Assert.That(events[0], Is.TypeOf<BatchChange<int>>());
+            Assert.That(((BatchChange<int>)events[0]).Changes.Count, Is.EqualTo(2));
         }
 
         [Test]
@@ -206,7 +266,6 @@ namespace ReactiveCollections.Tests
                 source.Add(3);
             }
 
-            Assert.That(filtered.Count, Is.EqualTo(2));
             Assert.That(filtered, Is.EqualTo(new[] { 1, 3 }));
         }
 
@@ -247,25 +306,28 @@ namespace ReactiveCollections.Tests
             var b = new ObservableList<int>();
             var merged = a.Merge(b);
 
+            var events = new List<Change<int>>();
+            merged.Changed += c => events.Add(c);
+
             using (a.Batch())
             {
                 a.Add(1);
                 a.Add(2);
             }
 
-            using (b.Batch())
-            {
-                b.Add(3);
-            }
+            Assert.That(merged, Is.EqualTo(new[] { 1, 2 }));
 
-            Assert.That(merged.Count, Is.EqualTo(3));
+            Assert.That(events.Count, Is.EqualTo(2));
+            Assert.That(events[0], Is.TypeOf<AddChange<int>>());
+            Assert.That(events[1], Is.TypeOf<AddChange<int>>());
+            Assert.That(((AddChange<int>)events[0]).Index, Is.EqualTo(0));
+            Assert.That(((AddChange<int>)events[1]).Index, Is.EqualTo(1));
         }
 
         [Test]
         public void Batch_FilterDoesNotEmitBatchItself()
         {
-            // Подписчик на filter.Changed должен получить отдельные Add,
-            // а не один Batch — потому что filter разворачивает Batch.
+            // FilterNode разворачивает BatchChange в отдельные AddChange.
             var source = new ObservableList<int>();
             var filter = source.Filter(x => true);
 
@@ -279,18 +341,15 @@ namespace ReactiveCollections.Tests
             }
 
             Assert.That(events.Count, Is.EqualTo(2));
-            Assert.That(events[0].Type, Is.EqualTo(ChangeType.Add));
-            Assert.That(events[1].Type, Is.EqualTo(ChangeType.Add));
+            Assert.That(events[0], Is.TypeOf<AddChange<int>>());
+            Assert.That(events[1], Is.TypeOf<AddChange<int>>());
         }
 
         [Test]
-        public void Batch_CountAggregate_RecomputesOnce()
+        public void Batch_CountAggregate_RecomputesFinalValue()
         {
             var source = new ObservableList<int>();
             var count = source.ObserveCount();
-
-            var changes = new List<ValueChange<int>>();
-            count.Changed += c => changes.Add(c);
 
             using (source.Batch())
             {
@@ -299,9 +358,6 @@ namespace ReactiveCollections.Tests
                 source.Add(3);
             }
 
-            // Count пересчитывается на каждое развёрнутое Add, но событие
-            // райзится только когда значение меняется.
-            // 0→1, 1→2, 2→3 — три события.
             Assert.That(count.Value, Is.EqualTo(3));
         }
 
@@ -329,9 +385,8 @@ namespace ReactiveCollections.Tests
                 // ожидаемо
             }
 
-            // батч всё равно закрылся, событие с Add(1) ушло
             Assert.That(events.Count, Is.EqualTo(1));
-            Assert.That(events[0].Type, Is.EqualTo(ChangeType.Batch));
+            Assert.That(events[0], Is.TypeOf<BatchChange<int>>());
         }
 
         // -------------------------------------------------------------------
@@ -349,7 +404,6 @@ namespace ReactiveCollections.Tests
             list.Add(1);
             list.Dispose();
 
-            // буфер выброшен, событий нет
             Assert.That(events, Is.Empty);
         }
     }

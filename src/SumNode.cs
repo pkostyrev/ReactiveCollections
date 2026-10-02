@@ -3,41 +3,22 @@
 namespace ReactiveCollections
 {
     /// <summary>
-    /// Агрегат <c>Sum</c> без селектора: сумма элементов источника.
+    /// Суммирует элементы источника с помощью заданной операции сложения.
     /// </summary>
-    /// <typeparam name="TNumber">Числовой тип. Должен поддерживать операцию сложения.</typeparam>
+    /// <typeparam name="TNumber">Тип элемента источника.</typeparam>
     /// <remarks>
-    /// <para>
-    /// <see cref="AggregateNode{TSource, TResult}.Recalculate"/> перебирает
-    /// элементы источника и накапливает сумму — O(N).
-    /// </para>
-    /// <para>
-    /// Для пустого источника значение — <c>zero</c>, переданный в конструктор
-    /// (обычно <c>0</c> соответствующего типа). Совпадает с семантикой
-    /// <c>System.Linq.Enumerable.Sum()</c>.
-    /// </para>
+    /// Для пустого источника результатом является значение <c>zero</c>,
+    /// переданное в конструктор.
     /// </remarks>
     public sealed class SumNode<TNumber> : AggregateNode<TNumber, TNumber>
     {
-        /// <summary>
-        /// Операция сложения двух чисел.
-        /// </summary>
         private readonly Func<TNumber, TNumber, TNumber> _add;
-
-        /// <summary>
-        /// Нейтральный элемент для операции сложения.
-        /// </summary>
         private readonly TNumber _zero;
 
-        /// <summary>
-        /// Создаёт агрегат над указанным источником.
-        /// </summary>
-        /// <param name="source">Источник. Не может быть <c>null</c>.</param>
-        /// <param name="zero">Нейтральный элемент — результат на пустом источнике.</param>
-        /// <param name="add">Операция сложения. Не может быть <c>null</c>.</param>
-        /// <exception cref="ArgumentNullException">
-        /// Если <paramref name="source"/> или <paramref name="add"/> — <c>null</c>.
-        /// </exception>
+        /// <param name="zero">
+        /// Начальное значение аккумулятора и результат для пустого источника.
+        /// </param>
+        /// <param name="add">Операция сложения.</param>
         public SumNode(
             IObservableList<TNumber> source,
             TNumber zero,
@@ -62,47 +43,24 @@ namespace ReactiveCollections
     }
 
     /// <summary>
-    /// Агрегат <c>Sum</c> с селектором: сумма значений, выбранных из элементов источника.
+    /// Сумма значений, выбранных из элементов источника.
     /// </summary>
     /// <typeparam name="TSource">Тип элемента источника.</typeparam>
-    /// <typeparam name="TNumber">Числовой тип. Должен поддерживать операцию сложения.</typeparam>
+    /// <typeparam name="TNumber">Тип выбранного значения.</typeparam>
     /// <remarks>
-    /// <para>
-    /// <see cref="AggregateNode{TSource, TResult}.Recalculate"/> перебирает
-    /// элементы источника, применяет селектор и накапливает сумму — O(N).
-    /// </para>
-    /// <para>
     /// Для пустого источника значение — <c>zero</c>, переданный в конструктор.
-    /// </para>
     /// </remarks>
     public sealed class SumWithSelectorNode<TSource, TNumber> : AggregateNode<TSource, TNumber>
     {
-        /// <summary>
-        /// Селектор значения из элемента источника.
-        /// </summary>
         private readonly Func<TSource, TNumber> _selector;
-
-        /// <summary>
-        /// Операция сложения двух чисел.
-        /// </summary>
         private readonly Func<TNumber, TNumber, TNumber> _add;
-
-        /// <summary>
-        /// Нейтральный элемент для операции сложения.
-        /// </summary>
         private readonly TNumber _zero;
 
-        /// <summary>
-        /// Создаёт агрегат над указанным источником.
-        /// </summary>
-        /// <param name="source">Источник. Не может быть <c>null</c>.</param>
-        /// <param name="selector">Селектор значения. Не может быть <c>null</c>.</param>
-        /// <param name="zero">Нейтральный элемент — результат на пустом источнике.</param>
-        /// <param name="add">Операция сложения. Не может быть <c>null</c>.</param>
-        /// <exception cref="ArgumentNullException">
-        /// Если <paramref name="source"/>, <paramref name="selector"/>
-        /// или <paramref name="add"/> — <c>null</c>.
-        /// </exception>
+        /// <param name="selector">Функция выбора значения.</param>
+        /// <param name="zero">
+        /// Начальное значение аккумулятора и результат для пустого источника.
+        /// </param>
+        /// <param name="add">Операция сложения.</param>
         public SumWithSelectorNode(
             IObservableList<TSource> source,
             Func<TSource, TNumber> selector,

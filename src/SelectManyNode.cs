@@ -4,93 +4,53 @@ using System.Collections.Generic;
 namespace ReactiveCollections
 {
     /// <summary>
-    /// Узел flattening: разворачивает каждый элемент источника в его
-    /// собственную <see cref="IObservableList{TResult}"/>, объединяя все
-    /// элементы в один плоский список.
+    /// Разворачивает каждый элемент источника в его вложенную коллекцию,
+    /// объединяя элементы всех коллекций в один плоский живой список.
     /// </summary>
     /// <typeparam name="TSource">Тип элемента источника.</typeparam>
     /// <typeparam name="TResult">Тип элемента вложенной коллекции.</typeparam>
     /// <remarks>
     /// <para>
-    /// Для каждого элемента <c>source</c> вызывается селектор, возвращающий
-    /// <see cref="IObservableList{TResult}"/>. Узел подписывается на изменения
-    /// каждой вложенной коллекции и отражает их в плоском результате.
+    /// Модель — Concat вложенных коллекций в порядке источника:
+    /// <c>flat = inner[0] + inner[1] + ... + inner[N-1]</c>. Каждая вложенная
+    /// коллекция образует непрерывный блок в результате.
     /// </para>
     /// <para>
-    /// Одинаковые по <see cref="object.Equals(object)"/> элементы из разных
-    /// вложенных коллекций различаются: каждая пара «элемент + его источник»
-    /// хранится как отдельная <see cref="Entry"/>. Это позволяет корректно
-    /// удалять вклад конкретной коллекции при <c>Remove</c> или <c>Reset</c>.
-    /// </para>
-    /// <para>
-    /// При <c>Update</c> источника селектор вызывается повторно. Если он
-    /// вернул **ту же самую** ссылку на внутреннюю коллекцию — ничего не
-    /// происходит. Если вернул новую — старая отписывается, её вклад
-    /// удаляется, новая подписывается. Сравнение — по <see cref="object.ReferenceEquals"/>.
+    /// Требование к селектору: каждый элемент источника должен возвращать
+    /// <b>собственную</b> внутреннюю коллекцию. Shared inner-коллекции
+    /// не входят в поддерживаемый контракт текущей реализации: одна
+    /// физическая коллекция получит несколько подписок, и одно её изменение
+    /// будет обработано несколько раз. Требование не проверяется в рантайме —
+    /// ответственность на вызывающем.
     /// </para>
     /// </remarks>
     public sealed class SelectManyNode<TSource, TResult> : ObservableNode<TResult>
     {
         /// <summary>
-        /// Соответствие одного элемента источника его вложенной коллекции.
+        /// Один источник в плоском результате: связывает элемент источника
+        /// с его вложенной коллекцией и текущим размером блока.
         /// </summary>
-        /// <remarks>
-        /// Хранит ссылку на источник, на вложенную коллекцию, обработчик
-        /// события и элементы, добавленные этой коллекцией в плоский результат.
-        /// </remarks>
         private sealed class Subscription
         {
-            public TSource Source { get; }
-            public IObservableList<TResult> Inner { get; }
-            public Action<Change<TResult>> Handler { get; }
-
-            public Subscription(
-                TSource source,
-                IObservableList<TResult> inner,
-                SelectManyNode<TSource, TResult> owner)
-            {
-                Source = source;
-                Inner = inner;
-                Handler = change => owner.OnInnerChanged(this, change);
-            }
-        }
-
-        /// <summary>
-        /// Одно вхождение в плоском результате: ссылка на <see cref="Subscription"/>
-        /// и элемент.
-        /// </summary>
-        /// <remarks>
-        /// Порядок <c>_entries</c> совпадает с порядком элементов в <see cref="ObservableNode{T}.Items"/>.
-        /// </remarks>
-        private sealed class Entry
-        {
-            public Subscription Subscription { get; }
-            public TResult Item { get; }
-
-            public Entry(Subscription subscription, TResult item)
-            {
-                Subscription = subscription;
-                Item = item;
-            }
+            public TSource Source;
+            public IObservableList<TResult> Inner;
+            public Action<Change<TResult>> Handler;
+            public int Count;
         }
 
         private readonly IObservableList<TSource> _source;
         private readonly Func<TSource, IObservableList<TResult>> _selector;
 
-        private readonly List<Subscription> _subscriptions = new();
-        private readonly List<Entry> _entries = new();
-
         /// <summary>
-        /// Создаёт узел flattening над указанным источником.
+        /// Подписки в порядке элементов источника. Индекс подписки
+        /// соответствует индексу occurrence в <c>_source</c>.
         /// </summary>
-        /// <param name="source">Источник. Не может быть <c>null</c>.</param>
+        private readonly List<Subscription> _subscriptions = new();
+
         /// <param name="selector">
-        /// Селектор вложенной коллекции. Не может быть <c>null</c>.
+        /// Селектор вложенной коллекции для каждого элемента источника.
         /// Не должен возвращать <c>null</c>.
         /// </param>
-        /// <exception cref="ArgumentNullException">
-        /// Если <paramref name="source"/> или <paramref name="selector"/> — <c>null</c>.
-        /// </exception>
         public SelectManyNode(
             IObservableList<TSource> source,
             Func<TSource, IObservableList<TResult>> selector)
@@ -101,294 +61,331 @@ namespace ReactiveCollections
             Initialize();
         }
 
-        /// <summary>
-        /// Считывает текущее содержимое источника и подписывается на его изменения.
-        /// </summary>
         private void Initialize()
         {
             foreach (var sourceItem in _source)
-                AddSourceItem(sourceItem);
+                InsertSourceSubscription(_subscriptions.Count, sourceItem);
 
             _source.Changed += OnSourceChanged;
         }
 
-        /// <summary>
-        /// Отписывается от источника и от всех вложенных коллекций.
-        /// </summary>
-        /// <remarks>
-        /// В отличие от других узлов, <see cref="SelectManyNode{TSource, TResult}"/>
-        /// держит подписки не только на корневой <c>Source</c>, но и на каждую
-        /// вложенную коллекцию. Все они отписываются при <c>Dispose</c>.
-        /// Сами вложенные коллекции не удаляются — они могут использоваться
-        /// вне этого узла.
-        /// </remarks>
         protected override void DisposeCore()
         {
             _source.Changed -= OnSourceChanged;
 
-            foreach (var subscription in _subscriptions)
-                subscription.Inner.Changed -= subscription.Handler;
+            foreach (var sub in _subscriptions)
+                sub.Inner.Changed -= sub.Handler;
 
             _subscriptions.Clear();
-            _entries.Clear();
-
             base.DisposeCore();
         }
 
         // -------------------------------------------------------------------
-        // Source
+        // Source changes
         // -------------------------------------------------------------------
 
         private void OnSourceChanged(Change<TSource> change)
         {
-            if (change.Type == ChangeType.Batch)
+            switch (change)
             {
-                foreach (var inner in change.Changes!)
-                    OnSourceChanged(inner);
-                return;
-            }
-
-            switch (change.Type)
-            {
-                case ChangeType.Add:
-                    AddSourceItem(change.Item);
+                case BatchChange<TSource> batch:
+                    foreach (var inner in batch.Changes)
+                        OnSourceChanged(inner);
                     break;
 
-                case ChangeType.Remove:
-                    RemoveSourceItem(change.Item);
+                case AddChange<TSource> add:
+                    InsertSourceSubscription(add.Index, add.Item);
                     break;
 
-                case ChangeType.Update:
-                    UpdateSourceItem(change.Item);
+                case RemoveChange<TSource> remove:
+                    RemoveSourceSubscription(remove.Index);
                     break;
 
-                case ChangeType.Replace:
-                    if (change.OldItem is null)
-                        throw new InvalidOperationException(
-                            "Change.Replace was raised without OldItem.");
-
-                    RemoveSourceItem(change.OldItem);
-                    AddSourceItem(change.Item);
+                case UpdateChange<TSource> update:
+                    UpdateSourceSubscription(update.Index, update.Item);
                     break;
 
-                case ChangeType.Reset:
+                case ReplaceChange<TSource> replace:
+                    ReplaceSourceSubscription(replace.Index, replace.NewItem);
+                    break;
+
+                case MoveChange<TSource> move:
+                    MoveSourceSubscription(move.FromIndex, move.ToIndex);
+                    break;
+
+                case ResetChange<TSource>:
                     ResetSource();
                     break;
 
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    throw new NotSupportedException(
+                        $"Unsupported change: {change.GetType().Name}");
             }
         }
 
-        private void AddSourceItem(TSource sourceItem)
+        private void InsertSourceSubscription(int sourceIndex, TSource item)
         {
-            var inner = GetInner(sourceItem);
-            var subscription = new Subscription(sourceItem, inner, this);
+            var inner = GetInner(item);
+            int startPos = BlockStartFor(sourceIndex);
 
-            _subscriptions.Add(subscription);
-            inner.Changed += subscription.Handler;
-
-            foreach (var item in inner)
+            Subscription sub = null!;
+            sub = new Subscription
             {
-                AddInternal(item);
-                _entries.Add(new Entry(subscription, item));
+                Source = item,
+                Inner = inner,
+                Handler = c => OnInnerChanged(sub, c),
+                Count = 0
+            };
+
+            _subscriptions.Insert(sourceIndex, sub);
+            inner.Changed += sub.Handler;
+
+            for (int i = 0; i < inner.Count; i++)
+            {
+                AddAtInternal(startPos + i, inner[i]);
+                sub.Count++;
             }
         }
 
-        private void RemoveSourceItem(TSource sourceItem)
+        private void RemoveSourceSubscription(int sourceIndex)
         {
-            var subscription = FindSubscription(sourceItem);
-            if (subscription is null)
-                return;
+            var sub = _subscriptions[sourceIndex];
+            int startPos = BlockStartFor(sourceIndex);
 
-            RemoveSubscription(subscription);
+            sub.Inner.Changed -= sub.Handler;
+
+            for (int i = 0; i < sub.Count; i++)
+                RemoveAtInternal(startPos);
+
+            _subscriptions.RemoveAt(sourceIndex);
         }
 
-        private void UpdateSourceItem(TSource sourceItem)
+        /// <summary>
+        /// При той же ссылке на inner — только обновляет Source в subscription,
+        /// блок не пересоздаётся.
+        /// </summary>
+        private void UpdateSourceSubscription(int sourceIndex, TSource item)
         {
-            var subscription = FindSubscription(sourceItem);
-            if (subscription is null)
+            var sub = _subscriptions[sourceIndex];
+            var newInner = GetInner(item);
+
+            if (ReferenceEquals(sub.Inner, newInner))
+            {
+                sub.Source = item;
                 return;
+            }
 
-            var newInner = GetInner(sourceItem);
-
-            // Та же самая ссылка — ничего не делаем, подписка уже актуальна.
-            if (ReferenceEquals(subscription.Inner, newInner))
-                return;
-
-            // Ссылка изменилась — переключаем подписку.
-            RemoveSubscription(subscription);
-            AddSourceItem(sourceItem);
+            ReplaceBlock(sourceIndex, item, newInner);
         }
 
+        /// <summary>
+        /// При той же ссылке на inner — только обновляет Source, содержимое
+        /// flat не меняется.
+        /// </summary>
+        private void ReplaceSourceSubscription(int sourceIndex, TSource newItem)
+        {
+            var oldSub = _subscriptions[sourceIndex];
+            var newInner = GetInner(newItem);
+
+            if (ReferenceEquals(oldSub.Inner, newInner))
+            {
+                oldSub.Source = newItem;
+                return;
+            }
+
+            ReplaceBlock(sourceIndex, newItem, newInner);
+        }
+
+        private void ReplaceBlock(int sourceIndex, TSource item, IObservableList<TResult> newInner)
+        {
+            var oldSub = _subscriptions[sourceIndex];
+            int startPos = BlockStartFor(sourceIndex);
+
+            oldSub.Inner.Changed -= oldSub.Handler;
+
+            for (int i = 0; i < oldSub.Count; i++)
+                RemoveAtInternal(startPos);
+
+            _subscriptions.RemoveAt(sourceIndex);
+
+            Subscription newSub = null!;
+            newSub = new Subscription
+            {
+                Source = item,
+                Inner = newInner,
+                Handler = c => OnInnerChanged(newSub, c),
+                Count = 0
+            };
+
+            _subscriptions.Insert(sourceIndex, newSub);
+            newInner.Changed += newSub.Handler;
+
+            for (int i = 0; i < newInner.Count; i++)
+            {
+                AddAtInternal(startPos + i, newInner[i]);
+                newSub.Count++;
+            }
+        }
+
+        /// <summary>
+        /// Переставляет целый блок inner-коллекции внутри flat. Наружу
+        /// публикуется последовательностью удалений и добавлений, а не одним
+        /// <see cref="MoveChange{TResult}"/>.
+        /// </summary>
+        private void MoveSourceSubscription(int fromIndex, int toIndex)
+        {
+            if (fromIndex == toIndex)
+                return;
+
+            var sub = _subscriptions[fromIndex];
+            int blockSize = sub.Count;
+            int oldStart = BlockStartFor(fromIndex);
+
+            _subscriptions.RemoveAt(fromIndex);
+            _subscriptions.Insert(toIndex, sub);
+
+            int newStart = BlockStartFor(toIndex);
+
+            if (oldStart == newStart)
+                return;
+
+            var blockItems = new TResult[blockSize];
+            for (int i = 0; i < blockSize; i++)
+                blockItems[i] = Items[oldStart + i];
+
+            for (int i = 0; i < blockSize; i++)
+                RemoveAtInternal(oldStart);
+
+            for (int i = 0; i < blockSize; i++)
+                AddAtInternal(newStart + i, blockItems[i]);
+        }
+
+        /// <summary>
+        /// Полный rebuild: отписывается от всех inner, перечитывает source,
+        /// наполняет flat напрямую, райзит один <see cref="ResetChange{TResult}"/>.
+        /// </summary>
         private void ResetSource()
         {
-            foreach (var subscription in _subscriptions)
-                subscription.Inner.Changed -= subscription.Handler;
+            ThrowIfDisposed();
 
+            foreach (var sub in _subscriptions)
+                sub.Inner.Changed -= sub.Handler;
             _subscriptions.Clear();
 
-            ResetInternal();
-
-            _entries.Clear();
+            bool hadItems = Items.Count > 0;
+            Items.Clear();
 
             foreach (var sourceItem in _source)
-                AddSourceItem(sourceItem);
+            {
+                var inner = GetInner(sourceItem);
+
+                Subscription sub = null!;
+                sub = new Subscription
+                {
+                    Source = sourceItem,
+                    Inner = inner,
+                    Handler = c => OnInnerChanged(sub, c),
+                    Count = 0
+                };
+
+                _subscriptions.Add(sub);
+                inner.Changed += sub.Handler;
+
+                for (int i = 0; i < inner.Count; i++)
+                {
+                    Items.Add(inner[i]);
+                    sub.Count++;
+                }
+            }
+
+            if (hadItems || Items.Count > 0)
+                Raise(new ResetChange<TResult>());
         }
 
         // -------------------------------------------------------------------
-        // Inner collection
+        // Inner changes
         // -------------------------------------------------------------------
 
-        private void OnInnerChanged(Subscription subscription, Change<TResult> change)
+        private void OnInnerChanged(Subscription sub, Change<TResult> change)
         {
-            if (change.Type == ChangeType.Batch)
-            {
-                foreach (var inner in change.Changes!)
-                    OnInnerChanged(subscription, inner);
+            int sourceIndex = _subscriptions.IndexOf(sub);
+            if (sourceIndex < 0)
                 return;
-            }
 
-            switch (change.Type)
+            int startPos = BlockStartFor(sourceIndex);
+
+            switch (change)
             {
-                case ChangeType.Add:
-                    AddInnerItem(subscription, change.Item);
+                case BatchChange<TResult> batch:
+                    foreach (var inner in batch.Changes)
+                        OnInnerChanged(sub, inner);
                     break;
 
-                case ChangeType.Remove:
-                    RemoveInnerItem(subscription, change.Item);
+                case AddChange<TResult> add:
+                    AddAtInternal(startPos + add.Index, add.Item);
+                    sub.Count++;
                     break;
 
-                case ChangeType.Update:
-                    UpdateInnerItem(subscription, change.Item);
+                case RemoveChange<TResult> remove:
+                    RemoveAtInternal(startPos + remove.Index);
+                    sub.Count--;
                     break;
 
-                case ChangeType.Replace:
-                    if (change.OldItem is null)
-                        throw new InvalidOperationException(
-                            "Change.Replace was raised without OldItem.");
-
-                    ReplaceInnerItem(subscription, change.OldItem, change.Item);
+                case UpdateChange<TResult> update:
+                    UpdateAtInternal(startPos + update.Index);
                     break;
 
-                case ChangeType.Reset:
-                    ResetInnerItems(subscription);
+                case ReplaceChange<TResult> replace:
+                    ReplaceAtInternal(startPos + replace.Index, replace.NewItem);
+                    break;
+
+                case MoveChange<TResult> move:
+                    MoveInternal(startPos + move.FromIndex, startPos + move.ToIndex);
+                    break;
+
+                case ResetChange<TResult>:
+                    for (int i = 0; i < sub.Count; i++)
+                        RemoveAtInternal(startPos);
+                    sub.Count = 0;
+
+                    for (int i = 0; i < sub.Inner.Count; i++)
+                    {
+                        AddAtInternal(startPos + i, sub.Inner[i]);
+                        sub.Count++;
+                    }
                     break;
 
                 default:
-                    throw new ArgumentOutOfRangeException();
-            }
-        }
-
-        private void AddInnerItem(Subscription subscription, TResult item)
-        {
-            AddInternal(item);
-            _entries.Add(new Entry(subscription, item));
-        }
-
-        private void RemoveInnerItem(Subscription subscription, TResult item)
-        {
-            int index = FindEntryIndex(subscription, item);
-            if (index < 0)
-                return;
-
-            RemoveAtInternal(index);
-            _entries.RemoveAt(index);
-        }
-
-        private void UpdateInnerItem(Subscription subscription, TResult item)
-        {
-            int index = FindEntryIndex(subscription, item);
-            if (index < 0)
-                return;
-
-            UpdateAtInternal(index);
-        }
-
-        private void ReplaceInnerItem(Subscription subscription, TResult oldItem, TResult newItem)
-        {
-            int index = FindEntryIndex(subscription, oldItem);
-            if (index < 0)
-                return;
-
-            ReplaceAtInternal(index, newItem);
-            _entries[index] = new Entry(subscription, newItem);
-        }
-
-        private void ResetInnerItems(Subscription subscription)
-        {
-            // Убираем вклад этой subscription из результата.
-            for (int i = _entries.Count - 1; i >= 0; i--)
-            {
-                if (ReferenceEquals(_entries[i].Subscription, subscription))
-                {
-                    RemoveAtInternal(i);
-                    _entries.RemoveAt(i);
-                }
-            }
-
-            // Добавляем актуальное содержимое inner заново.
-            foreach (var item in subscription.Inner)
-            {
-                AddInternal(item);
-                _entries.Add(new Entry(subscription, item));
+                    throw new NotSupportedException(
+                        $"Unsupported change: {change.GetType().Name}");
             }
         }
 
         // -------------------------------------------------------------------
-        // Subscription management
+        // Helpers
         // -------------------------------------------------------------------
 
-        private void RemoveSubscription(Subscription subscription)
+        /// <summary>
+        /// Возвращает начало блока элемента с индексом <paramref name="sourceIndex"/>
+        /// в flat как сумму размеров всех предыдущих блоков.
+        /// </summary>
+        private int BlockStartFor(int sourceIndex)
         {
-            subscription.Inner.Changed -= subscription.Handler;
-
-            for (int i = _entries.Count - 1; i >= 0; i--)
-            {
-                if (ReferenceEquals(_entries[i].Subscription, subscription))
-                {
-                    RemoveAtInternal(i);
-                    _entries.RemoveAt(i);
-                }
-            }
-
-            _subscriptions.Remove(subscription);
+            int start = 0;
+            for (int i = 0; i < sourceIndex; i++)
+                start += _subscriptions[i].Count;
+            return start;
         }
 
-        private Subscription? FindSubscription(TSource sourceItem)
+        /// <summary>
+        /// Возвращает внутреннюю коллекцию для элемента источника.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// Если селектор вернул <c>null</c>.
+        /// </exception>
+        private IObservableList<TResult> GetInner(TSource item)
         {
-            var comparer = EqualityComparer<TSource>.Default;
-
-            foreach (var subscription in _subscriptions)
-            {
-                if (comparer.Equals(subscription.Source, sourceItem))
-                    return subscription;
-            }
-
-            return null;
-        }
-
-        private int FindEntryIndex(Subscription subscription, TResult item)
-        {
-            var comparer = EqualityComparer<TResult>.Default;
-
-            for (int i = 0; i < _entries.Count; i++)
-            {
-                var entry = _entries[i];
-
-                if (!ReferenceEquals(entry.Subscription, subscription))
-                    continue;
-
-                if (comparer.Equals(entry.Item, item))
-                    return i;
-            }
-
-            return -1;
-        }
-
-        private IObservableList<TResult> GetInner(TSource sourceItem)
-        {
-            return _selector(sourceItem)
+            return _selector(item)
                 ?? throw new InvalidOperationException(
                     "SelectMany selector returned null.");
         }

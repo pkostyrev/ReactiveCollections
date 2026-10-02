@@ -4,31 +4,13 @@ using System.Collections.Generic;
 namespace ReactiveCollections
 {
     /// <summary>
-    /// Агрегат <c>Min</c> без селектора: минимальный элемент источника.
+    /// Минимальный элемент источника.
     /// </summary>
-    /// <typeparam name="TNumber">Числовой тип. Должен поддерживать сравнение.</typeparam>
-    /// <remarks>
-    /// <para>
-    /// <see cref="AggregateNode{TSource, TResult}.Recalculate"/> перебирает
-    /// элементы источника и находит минимальный — O(N).
-    /// </para>
-    /// <para>
-    /// Для пустого источника значение — <c>null</c>. Это отличается от
-    /// LINQ (<c>Min()</c> на пустом бросает <see cref="InvalidOperationException"/>),
-    /// но согласовано с моделью <see cref="AggregateNode{TSource, TResult}"/>:
-    /// значение всегда доступно, а «нет значения» представлено как <c>null</c>.
-    /// </para>
-    /// </remarks>
+    /// <typeparam name="TNumber">Тип значения, поддерживающий сравнение.</typeparam>
+    /// <remarks>Для пустого источника значение — <c>null</c>.</remarks>
     public sealed class MinNode<TNumber> : AggregateNode<TNumber, TNumber?>
         where TNumber : struct
     {
-        /// <summary>
-        /// Создаёт агрегат над указанным источником.
-        /// </summary>
-        /// <param name="source">Источник. Не может быть <c>null</c>.</param>
-        /// <exception cref="ArgumentNullException">
-        /// Если <paramref name="source"/> — <c>null</c>.
-        /// </exception>
         public MinNode(IObservableList<TNumber> source) : base(source)
         {
             Initialize();
@@ -51,36 +33,17 @@ namespace ReactiveCollections
     }
 
     /// <summary>
-    /// Агрегат <c>Min</c> с селектором: минимальное значение, выбранное
-    /// из элементов источника.
+    /// Минимальное значение, выбранное из элементов источника.
     /// </summary>
     /// <typeparam name="TSource">Тип элемента источника.</typeparam>
-    /// <typeparam name="TNumber">Числовой тип. Должен поддерживать сравнение.</typeparam>
-    /// <remarks>
-    /// <para>
-    /// <see cref="AggregateNode{TSource, TResult}.Recalculate"/> перебирает
-    /// элементы источника, применяет селектор и находит минимальное значение — O(N).
-    /// </para>
-    /// <para>
-    /// Для пустого источника значение — <c>null</c>.
-    /// </para>
-    /// </remarks>
+    /// <typeparam name="TNumber">Тип значения, поддерживающий сравнение.</typeparam>
+    /// <remarks>Для пустого источника значение — <c>null</c>.</remarks>
     public sealed class MinWithSelectorNode<TSource, TNumber> : AggregateNode<TSource, TNumber?>
         where TNumber : struct
     {
-        /// <summary>
-        /// Селектор значения из элемента источника.
-        /// </summary>
         private readonly Func<TSource, TNumber> _selector;
 
-        /// <summary>
-        /// Создаёт агрегат над указанным источником.
-        /// </summary>
-        /// <param name="source">Источник. Не может быть <c>null</c>.</param>
-        /// <param name="selector">Селектор значения. Не может быть <c>null</c>.</param>
-        /// <exception cref="ArgumentNullException">
-        /// Если <paramref name="source"/> или <paramref name="selector"/> — <c>null</c>.
-        /// </exception>
+        /// <param name="selector">Функция выбора числового значения.</param>
         public MinWithSelectorNode(
             IObservableList<TSource> source,
             Func<TSource, TNumber> selector) : base(source)

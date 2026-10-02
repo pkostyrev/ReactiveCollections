@@ -11,45 +11,24 @@ namespace ReactiveCollections
     /// <typeparam name="TResult">Тип агрегированного значения.</typeparam>
     /// <remarks>
     /// <para>
-    /// В отличие от <see cref="ObservableValue{T}"/> (ручное значение),
-    /// <see cref="AggregateNode{TSource, TResult}"/> — <b>производное</b>
-    /// значение. Оно пересчитывается при каждом изменении источника.
+    /// Агрегированное значение пересчитывается при каждом изменении источника.
+    /// Событие <see cref="Changed"/> райзится только если агрегированное
+    /// значение реально изменилось (сравнение через
+    /// <see cref="EqualityComparer{T}.Default"/>). Это отличается от
+    /// <see cref="ObservableValue{T}.Set"/>, который райзит всегда.
     /// </para>
     /// <para>
-    /// <b>Событие <see cref="Changed"/> райзится только тогда, когда
-    /// агрегированное значение реально изменилось</b> (сравнение через
-    /// <see cref="EqualityComparer{T}.Default"/>). Например, <c>Count</c>
-    /// не отреагирует на <c>Update</c> или <c>Replace</c> в источнике,
-    /// потому что количество элементов не изменилось.
-    /// Это отличается от <see cref="ObservableValue{T}.Set"/>, который
-    /// райзит событие всегда — см. README, раздел 4.10.
-    /// </para>
-    /// <para>
-    /// Пересчёт выполняется синхронно в момент изменения источника.
-    /// Для <c>Count</c> это O(1), для <c>Sum</c> / <c>Min</c> / <c>Max</c> — O(N).
-    /// Оптимизация (инкрементальный пересчёт) — в дорожной карте.
+    /// Пересчёт синхронный. Для <c>Count</c> — O(1), для
+    /// <c>Sum</c> / <c>Min</c> / <c>Max</c> / <c>Average</c> — O(N).
+    /// Оптимизация — в дорожной карте.
     /// </para>
     /// </remarks>
     public abstract class AggregateNode<TSource, TResult> : IObservableValue<TResult>
     {
-        /// <summary>
-        /// Компаратор для определения, изменилось ли значение.
-        /// </summary>
         private readonly IEqualityComparer<TResult> _comparer;
 
-        /// <summary>
-        /// Текущее агрегированное значение.
-        /// </summary>
         private TResult _value = default!;
-
-        /// <summary>
-        /// Флаг «узел инициализирован» — выставляется в <see cref="Initialize"/>.
-        /// </summary>
         private bool _initialized;
-
-        /// <summary>
-        /// Флаг «узел освобождён» — выставляется в <see cref="Dispose"/>.
-        /// </summary>
         private bool _disposed;
 
         /// <inheritdoc />
@@ -73,24 +52,18 @@ namespace ReactiveCollections
             }
         }
 
-        /// <summary>
-        /// Источник агрегации. Устанавливается в конструкторе.
-        /// </summary>
+        /// <summary>Источник агрегации.</summary>
         protected IObservableList<TSource> Source { get; }
 
-        /// <summary>
-        /// Создаёт агрегат над указанным источником.
-        /// </summary>
         /// <param name="source">Источник. Не может быть <c>null</c>.</param>
         /// <param name="comparer">
         /// Компаратор для сравнения значений. Если <c>null</c> —
         /// используется <see cref="EqualityComparer{T}.Default"/>.
         /// </param>
-        /// <exception cref="ArgumentNullException">Если <paramref name="source"/> — <c>null</c>.</exception>
         /// <remarks>
-        /// Конструктор <b>не</b> подписывается на источник и не вычисляет
-        /// начальное значение. Это делает <see cref="Initialize"/>, который
-        /// должен вызвать наследник в конце своего конструктора.
+        /// Конструктор не подписывается на источник и не вычисляет начальное
+        /// значение — это делает <see cref="Initialize"/>. Наследник обязан
+        /// вызвать его в конце своего конструктора.
         /// </remarks>
         protected AggregateNode(
             IObservableList<TSource> source,
@@ -104,18 +77,13 @@ namespace ReactiveCollections
         /// Вычисляет текущее агрегированное значение по состоянию источника.
         /// </summary>
         /// <remarks>
-        /// Метод вызывается:
-        /// <list type="bullet">
-        /// <item>один раз при <see cref="Initialize"/> — для начального значения;</item>
-        /// <item>при каждом изменении источника.</item>
-        /// </list>
-        /// Метод не должен иметь побочных эффектов.
+        /// Вызывается один раз при <see cref="Initialize"/> и при каждом
+        /// изменении источника. Не должен иметь побочных эффектов.
         /// </remarks>
         protected abstract TResult Recalculate();
 
         /// <summary>
-        /// Инициализирует узел: вычисляет начальное значение и подписывается
-        /// на изменения источника.
+        /// Вычисляет начальное значение и подписывается на изменения источника.
         /// </summary>
         /// <exception cref="InvalidOperationException">
         /// Если метод вызван повторно.
@@ -137,11 +105,9 @@ namespace ReactiveCollections
         }
 
         /// <summary>
-        /// Отписывается от источника.
+        /// Отписывается от источника. Идемпотентен.
         /// </summary>
-        /// <remarks>
-        /// Идемпотентен. Источник не удаляется — это ответственность вызывающего.
-        /// </remarks>
+        /// <remarks>Источник не удаляется — это ответственность вызывающего.</remarks>
         public void Dispose()
         {
             if (_disposed)
@@ -153,10 +119,6 @@ namespace ReactiveCollections
                 Source.Changed -= OnSourceChanged;
         }
 
-        /// <summary>
-        /// Обработчик изменений источника: пересчитывает значение
-        /// и райзит <see cref="Changed"/>, если оно изменилось.
-        /// </summary>
         private void OnSourceChanged(Change<TSource> change)
         {
             var oldValue = _value;
@@ -170,12 +132,9 @@ namespace ReactiveCollections
             Raise(new ValueChange<TResult>(oldValue, newValue));
         }
 
-        /// <summary>
-        /// Публикует изменение всем подписчикам <see cref="Changed"/>.
-        /// </summary>
         /// <remarks>
-        /// Если один из подписчиков выбрасывает исключение, остальные всё равно
-        /// получат событие. См. README, раздел 4.8.
+        /// Если один из подписчиков выбрасывает исключение, остальные всё
+        /// равно получат событие.
         /// </remarks>
         private void Raise(ValueChange<TResult> change)
         {

@@ -3,8 +3,7 @@
 namespace ReactiveCollections.Tests
 {
     /// <summary>
-    /// Тесты <see cref="GroupNode{TKey, TSource}"/> — группировки элементов
-    /// источника по ключу.
+    /// Тесты <see cref="GroupNode{TKey, TSource}"/>.
     /// </summary>
     [TestFixture]
     public class GroupNodeTests
@@ -103,9 +102,11 @@ namespace ReactiveCollections.Tests
 
             source.Add(TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1));
 
-            Assert.That(received, Is.Not.Null);
-            Assert.That(received!.Type, Is.EqualTo(ChangeType.Add));
-            Assert.That(received.Item.Key, Is.EqualTo(10));
+            Assert.That(received, Is.TypeOf<AddChange<Group<int, Player>>>());
+
+            var add = (AddChange<Group<int, Player>>)received!;
+            Assert.That(add.Item.Key, Is.EqualTo(10));
+            Assert.That(add.Index, Is.EqualTo(0));
         }
 
         [Test]
@@ -125,9 +126,8 @@ namespace ReactiveCollections.Tests
 
             source.Add(tom);
 
-            Assert.That(received, Is.Not.Null);
-            Assert.That(received!.Type, Is.EqualTo(ChangeType.Add));
-            Assert.That(received.Item, Is.SameAs(tom));
+            Assert.That(received, Is.TypeOf<AddChange<Player>>());
+            Assert.That(((AddChange<Player>)received!).Item, Is.SameAs(tom));
         }
 
         [Test]
@@ -155,19 +155,16 @@ namespace ReactiveCollections.Tests
             Change<Player>? innerChange = null;
             groups.Changed += change =>
             {
-                if (change.Type != ChangeType.Add)
-                    return;
-
-                change.Item.Items.Changed += itemChange => innerChange = itemChange;
+                if (change is AddChange<Group<int, Player>> add)
+                    add.Item.Items.Changed += inner => innerChange = inner;
             };
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
 
             source.Add(bob);
 
-            Assert.That(innerChange, Is.Not.Null);
-            Assert.That(innerChange!.Type, Is.EqualTo(ChangeType.Add));
-            Assert.That(innerChange.Item, Is.SameAs(bob));
+            Assert.That(innerChange, Is.TypeOf<AddChange<Player>>());
+            Assert.That(((AddChange<Player>)innerChange!).Item, Is.SameAs(bob));
         }
 
         [Test]
@@ -176,7 +173,6 @@ namespace ReactiveCollections.Tests
             var source = new ObservableList<Player>();
             var groups = source.GroupBy(p => p.TeamId);
 
-            // Player.Equals по Id — оба равны
             var p1 = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var p2 = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
 
@@ -185,6 +181,62 @@ namespace ReactiveCollections.Tests
 
             Assert.That(groups.Count, Is.EqualTo(1));
             Assert.That(groups[0].Items.Count, Is.EqualTo(2));
+        }
+
+        // -------------------------------------------------------------------
+        // AddAt
+        // -------------------------------------------------------------------
+
+        [Test]
+        public void AddAt_InsertsItemAtCorrectInnerIndex()
+        {
+            var source = new ObservableList<Player>();
+            var groups = source.GroupBy(p => p.TeamId);
+
+            var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
+            var tom = TestData.CreatePlayer(id: 2, name: "Tom", teamId: 10, level: 1);
+            var alice = TestData.CreatePlayer(id: 3, name: "Alice", teamId: 10, level: 1);
+
+            source.Add(bob);
+            source.Add(tom);
+
+            source.AddAt(1, alice);
+
+            var group = groups.Single();
+
+            Assert.That(group.Items[0], Is.SameAs(bob));
+            Assert.That(group.Items[1], Is.SameAs(alice));
+            Assert.That(group.Items[2], Is.SameAs(tom));
+        }
+
+        [Test]
+        public void AddAt_BetweenItemsOfSameGroup_UsesSourceIndex()
+        {
+            var source = new ObservableList<Player>();
+            var groups = source.GroupBy(p => p.TeamId);
+
+            var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
+            var mike = TestData.CreatePlayer(id: 2, name: "Mike", teamId: 20, level: 1);
+            var tom = TestData.CreatePlayer(id: 3, name: "Tom", teamId: 10, level: 1);
+
+            source.Add(bob);
+            source.Add(mike);
+            source.Add(tom);
+
+            var alice = TestData.CreatePlayer(id: 4, name: "Alice", teamId: 10, level: 1);
+
+            // source: [Bob, Mike, Tom]
+            // добавляем Alice с teamId = 10 на source-index 1
+            source.AddAt(1, alice);
+            // source: [Bob, Alice, Mike, Tom]
+            // team10: [Bob, Alice, Tom]
+
+            var team10 = groups.Single(g => g.Key == 10);
+
+            Assert.That(team10.Items.Count, Is.EqualTo(3));
+            Assert.That(team10.Items[0], Is.SameAs(bob));
+            Assert.That(team10.Items[1], Is.SameAs(alice));
+            Assert.That(team10.Items[2], Is.SameAs(tom));
         }
 
         // -------------------------------------------------------------------
@@ -227,9 +279,8 @@ namespace ReactiveCollections.Tests
             bob.Name = "Robert";
             source.Update(bob);
 
-            Assert.That(received, Is.Not.Null);
-            Assert.That(received!.Type, Is.EqualTo(ChangeType.Update));
-            Assert.That(received.Item, Is.SameAs(bob));
+            Assert.That(received, Is.TypeOf<UpdateChange<Player>>());
+            Assert.That(((UpdateChange<Player>)received!).Item, Is.SameAs(bob));
         }
 
         [Test]
@@ -293,14 +344,15 @@ namespace ReactiveCollections.Tests
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             source.Add(bob);
 
-            var groupEvents = new List<ChangeType>();
-            groups.Changed += c => groupEvents.Add(c.Type);
+            var groupEvents = new List<Change<Group<int, Player>>>();
+            groups.Changed += c => groupEvents.Add(c);
 
             bob.TeamId = 20;
             source.Update(bob);
 
-            Assert.That(groupEvents,
-                Is.EqualTo(new[] { ChangeType.Remove, ChangeType.Add }));
+            Assert.That(groupEvents.Count, Is.EqualTo(2));
+            Assert.That(groupEvents[0], Is.TypeOf<RemoveChange<Group<int, Player>>>());
+            Assert.That(groupEvents[1], Is.TypeOf<AddChange<Group<int, Player>>>());
         }
 
         [Test]
@@ -314,8 +366,8 @@ namespace ReactiveCollections.Tests
 
             var oldGroup = groups[0];
 
-            var oldGroupEvents = new List<ChangeType>();
-            oldGroup.Items.Changed += c => oldGroupEvents.Add(c.Type);
+            var oldGroupEvents = new List<Change<Player>>();
+            oldGroup.Items.Changed += c => oldGroupEvents.Add(c);
 
             bob.TeamId = 20;
             source.Update(bob);
@@ -324,11 +376,9 @@ namespace ReactiveCollections.Tests
             Assert.That(newGroup, Is.Not.SameAs(oldGroup));
             Assert.That(newGroup.Key, Is.EqualTo(20));
 
-            // старая группа получила Remove
-            Assert.That(oldGroupEvents,
-                Is.EqualTo(new[] { ChangeType.Remove }));
+            Assert.That(oldGroupEvents.Count, Is.EqualTo(1));
+            Assert.That(oldGroupEvents[0], Is.TypeOf<RemoveChange<Player>>());
 
-            // новая группа уже содержит bob — подписка после факта
             Assert.That(newGroup.Items.Count, Is.EqualTo(1));
             Assert.That(newGroup.Items[0], Is.SameAs(bob));
         }
@@ -345,21 +395,46 @@ namespace ReactiveCollections.Tests
             Change<Player>? innerAdd = null;
             groups.Changed += change =>
             {
-                if (change.Type == ChangeType.Add)
-                {
-                    change.Item.Items.Changed += inner =>
+                if (change is AddChange<Group<int, Player>> add)
+                    add.Item.Items.Changed += inner =>
                     {
-                        if (inner.Type == ChangeType.Add)
-                            innerAdd = inner;
+                        if (inner is AddChange<Player> a)
+                            innerAdd = a;
                     };
-                }
             };
 
             bob.TeamId = 20;
             source.Update(bob);
 
             Assert.That(innerAdd, Is.Not.Null);
-            Assert.That(innerAdd!.Item, Is.SameAs(bob));
+            Assert.That(((AddChange<Player>)innerAdd!).Item, Is.SameAs(bob));
+        }
+
+
+        // -------------------------------------------------------------------
+        // UpdateAt
+        // -------------------------------------------------------------------
+
+        [Test]
+        public void UpdateAt_DuplicateEquals_UpdatesCorrectOccurrence()
+        {
+            var source = new ObservableList<Player>();
+            var groups = source.GroupBy(p => p.TeamId);
+
+            var p1 = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
+            var p2 = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
+
+            source.Add(p1);
+            source.Add(p2);
+
+            p2.Name = "Robert";
+            source.UpdateAt(1);
+
+            var group = groups.Single();
+
+            Assert.That(group.Items[0], Is.SameAs(p1));
+            Assert.That(group.Items[1], Is.SameAs(p2));
+            Assert.That(group.Items[1].Name, Is.EqualTo("Robert"));
         }
 
         // -------------------------------------------------------------------
@@ -403,9 +478,8 @@ namespace ReactiveCollections.Tests
             source.Remove(bob);
 
             Assert.That(groups.Count, Is.EqualTo(0));
-            Assert.That(received, Is.Not.Null);
-            Assert.That(received!.Type, Is.EqualTo(ChangeType.Remove));
-            Assert.That(received.Item, Is.SameAs(group));
+            Assert.That(received, Is.TypeOf<RemoveChange<Group<int, Player>>>());
+            Assert.That(((RemoveChange<Group<int, Player>>)received!).Item, Is.SameAs(group));
         }
 
         [Test]
@@ -424,12 +498,37 @@ namespace ReactiveCollections.Tests
             Assert.That(groups[0].Items.Count, Is.EqualTo(1));
         }
 
+
         // -------------------------------------------------------------------
-        // Replace (используется базовая эмуляция Remove + Add)
+        // RemoveAt
         // -------------------------------------------------------------------
 
         [Test]
-        public void Replace_ItemInGroup_ReplacesInPlace()
+        public void RemoveAt_DuplicateEquals_RemovesCorrectOccurrence()
+        {
+            var source = new ObservableList<Player>();
+            var groups = source.GroupBy(p => p.TeamId);
+
+            var p1 = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
+            var p2 = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
+
+            source.Add(p1);
+            source.Add(p2);
+
+            source.RemoveAt(1);
+
+            var group = groups.Single();
+
+            Assert.That(group.Items.Count, Is.EqualTo(1));
+            Assert.That(group.Items[0], Is.SameAs(p1));
+        }
+
+        // -------------------------------------------------------------------
+        // Replace
+        // -------------------------------------------------------------------
+
+        [Test]
+        public void Replace_SameKey_ReplacesInPlace()
         {
             var source = new ObservableList<Player>();
             var groups = source.GroupBy(p => p.TeamId);
@@ -438,12 +537,181 @@ namespace ReactiveCollections.Tests
             var alice = TestData.CreatePlayer(id: 3, name: "Alice", teamId: 10, level: 1);
 
             source.Add(bob);
+            var originalGroup = groups[0];
 
             source.Replace(bob, alice);
 
             Assert.That(groups.Count, Is.EqualTo(1));
+            Assert.That(groups[0], Is.SameAs(originalGroup));
             Assert.That(groups[0].Items.Count, Is.EqualTo(1));
             Assert.That(groups[0].Items[0], Is.SameAs(alice));
+        }
+
+        [Test]
+        public void Replace_KeyChanged_MovesItemToAnotherGroup()
+        {
+            var source = new ObservableList<Player>();
+            var groups = source.GroupBy(p => p.TeamId);
+
+            var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
+            var mike = TestData.CreatePlayer(id: 2, name: "Mike", teamId: 20, level: 1);
+
+            source.Add(bob);
+            source.Add(mike);
+
+            var alice = TestData.CreatePlayer(id: 3, name: "Alice", teamId: 20, level: 1);
+            source.Replace(bob, alice);
+
+            Assert.That(groups.Count, Is.EqualTo(1));
+            Assert.That(groups[0].Key, Is.EqualTo(20));
+            Assert.That(groups[0].Items.Count, Is.EqualTo(2));
+            Assert.That(groups[0].Items, Does.Contain(alice));
+            Assert.That(groups[0].Items, Does.Contain(mike));
+        }
+
+        // -------------------------------------------------------------------
+        // ReplaceAt
+        // -------------------------------------------------------------------
+
+        [Test]
+        public void ReplaceAt_SameKey_PreservesGroupAndPosition()
+        {
+            var source = new ObservableList<Player>();
+            var groups = source.GroupBy(p => p.TeamId);
+
+            var p1 = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
+            var p2 = TestData.CreatePlayer(id: 2, name: "Tom", teamId: 10, level: 1);
+            var p3 = TestData.CreatePlayer(id: 3, name: "Mike", teamId: 10, level: 1);
+
+            source.Add(p1);
+            source.Add(p2);
+            source.Add(p3);
+
+            var group = groups.Single();
+
+            var replacement = TestData.CreatePlayer(id: 4, name: "Alice", teamId: 10, level: 1);
+
+            source.ReplaceAt(1, replacement);
+
+            Assert.That(groups.Single(), Is.SameAs(group));
+            Assert.That(group.Items.Count, Is.EqualTo(3));
+            Assert.That(group.Items[0], Is.SameAs(p1));
+            Assert.That(group.Items[1], Is.SameAs(replacement));
+            Assert.That(group.Items[2], Is.SameAs(p3));
+        }
+
+        [Test]
+        public void ReplaceAt_ChangedKey_MovesItemAndKeepsOldGroup()
+        {
+            var source = new ObservableList<Player>();
+            var groups = source.GroupBy(p => p.TeamId);
+
+            var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
+            var tom = TestData.CreatePlayer(id: 2, name: "Tom", teamId: 10, level: 1);
+            var mike = TestData.CreatePlayer(id: 3, name: "Mike", teamId: 20, level: 1);
+
+            source.Add(bob);
+            source.Add(tom);
+            source.Add(mike);
+
+            var team10 = groups.Single(g => g.Key == 10);
+            var team20 = groups.Single(g => g.Key == 20);
+
+            var replacement = TestData.CreatePlayer(id: 4, name: "Alice", teamId: 20, level: 1);
+
+            source.ReplaceAt(0, replacement);
+
+            Assert.That(groups.Count, Is.EqualTo(2));
+
+            Assert.That(groups.Single(g => g.Key == 10), Is.SameAs(team10));
+            Assert.That(groups.Single(g => g.Key == 20), Is.SameAs(team20));
+
+            Assert.That(team10.Items.Count, Is.EqualTo(1));
+            Assert.That(team10.Items[0], Is.SameAs(tom));
+
+            Assert.That(team20.Items.Count, Is.EqualTo(2));
+            Assert.That(team20.Items[0], Is.SameAs(replacement));
+            Assert.That(team20.Items[1], Is.SameAs(mike));
+        }
+
+        // -------------------------------------------------------------------
+        // Move
+        // -------------------------------------------------------------------
+
+        [Test]
+        public void Move_SameGroup_ReordersInnerItems()
+        {
+            var source = new ObservableList<Player>();
+            var groups = source.GroupBy(p => p.TeamId);
+
+            var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
+            var tom = TestData.CreatePlayer(id: 2, name: "Tom", teamId: 10, level: 1);
+            var mike = TestData.CreatePlayer(id: 3, name: "Mike", teamId: 10, level: 1);
+
+            source.Add(bob);
+            source.Add(tom);
+            source.Add(mike);
+
+            source.Move(2, 0);
+
+            var group = groups.Single();
+
+            Assert.That(group.Items[0], Is.SameAs(mike));
+            Assert.That(group.Items[1], Is.SameAs(bob));
+            Assert.That(group.Items[2], Is.SameAs(tom));
+        }
+
+        [Test]
+        public void Move_DuplicateEquals_MovesCorrectOccurrence()
+        {
+            var source = new ObservableList<Player>();
+            var groups = source.GroupBy(p => p.TeamId);
+
+            var p1 = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
+            var p2 = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
+            var p3 = TestData.CreatePlayer(id: 2, name: "Tom", teamId: 10, level: 1);
+
+            source.Add(p1);
+            source.Add(p2);
+            source.Add(p3);
+
+            source.Move(2, 0);
+
+            var group = groups.Single();
+
+            Assert.That(group.Items[0], Is.SameAs(p3));
+            Assert.That(group.Items[1], Is.SameAs(p1));
+            Assert.That(group.Items[2], Is.SameAs(p2));
+        }
+
+        [Test]
+        public void Move_BetweenGroups_ReordersOnlySourcePositions()
+        {
+            var source = new ObservableList<Player>();
+            var groups = source.GroupBy(p => p.TeamId);
+
+            var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
+            var mike = TestData.CreatePlayer(id: 2, name: "Mike", teamId: 20, level: 1);
+            var tom = TestData.CreatePlayer(id: 3, name: "Tom", teamId: 10, level: 1);
+
+            source.Add(bob);
+            source.Add(mike);
+            source.Add(tom);
+
+            // Перемещаем Tom (team10, source-index 2) на source-index 0
+            source.Move(2, 0);
+            // source: [Tom, Bob, Mike]
+            // team10 должен стать: [Tom, Bob]
+
+            var team10 = groups.Single(g => g.Key == 10);
+            var team20 = groups.Single(g => g.Key == 20);
+
+            Assert.That(team10.Items.Count, Is.EqualTo(2));
+            Assert.That(team10.Items[0], Is.SameAs(tom));
+            Assert.That(team10.Items[1], Is.SameAs(bob));
+
+            Assert.That(team20.Items.Count, Is.EqualTo(1));
+            Assert.That(team20.Items[0], Is.SameAs(mike));
         }
 
         // -------------------------------------------------------------------

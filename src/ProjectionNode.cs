@@ -3,79 +3,34 @@
 namespace ReactiveCollections
 {
     /// <summary>
-    /// База для проекций с одним источником.
-    /// Подписывается на <see cref="Source"/>, транслирует изменения через
-    /// виртуальные хуки <c>OnAdd</c> / <c>OnRemove</c> / <c>OnUpdate</c> /
-    /// <c>OnReplace</c> / <c>OnReset</c>.
+    /// База для одноисточниковых проекций. Подписывается на <see cref="Source"/>,
+    /// транслирует изменения через виртуальные хуки.
     /// </summary>
     /// <typeparam name="TSource">Тип элемента источника.</typeparam>
     /// <typeparam name="TResult">Тип элемента результата.</typeparam>
     /// <remarks>
-    /// <para>
     /// Наследник обязан вызвать <see cref="Initialize"/> в своём конструкторе
-    /// <b>после</b> инициализации всех своих полей. Это связано с тем, что
-    /// <see cref="Initialize"/> вызывает виртуальные методы, которые могут
-    /// обращаться к полям наследника.
-    /// </para>
-    /// <para>
-    /// Само <see cref="ProjectionNode{TSource, TResult}"/> не вызывает
-    /// <see cref="Initialize"/> — это делает конкретный наследник
-    /// (<see cref="FilterNode{T}"/>, <see cref="SelectNode{TSource, TResult}"/>
-    /// и т.п.).
-    /// </para>
+    /// после инициализации всех полей.
     /// </remarks>
     public abstract class ProjectionNode<TSource, TResult> : ObservableNode<TResult>
     {
-        /// <summary>
-        /// Источник изменений. Не переприсваивается после конструирования.
-        /// </summary>
-        /// <remarks>
-        /// <c>protected</c> — для наследников, которым нужен доступ к элементам
-        /// источника напрямую (например, <c>SelectNode.OnAdd</c> читает
-        /// <c>change.Item</c>, но не сам <see cref="Source"/>).
-        /// </remarks>
+        /// <summary>Источник изменений.</summary>
         protected readonly IObservableList<TSource> Source;
 
-        /// <summary>
-        /// Защита от повторного вызова <see cref="Initialize"/>.
-        /// </summary>
         private bool _isInitialized;
 
-        /// <summary>
-        /// Создаёт проекцию с указанным источником.
-        /// </summary>
-        /// <param name="source">Источник изменений. Не может быть <c>null</c>.</param>
-        /// <exception cref="ArgumentNullException">Если <paramref name="source"/> — <c>null</c>.</exception>
-        /// <remarks>
-        /// Конструктор <b>не</b> вызывает <see cref="Initialize"/> и не подписывается
-        /// на источник. Это делает наследник.
-        /// </remarks>
+        /// <param name="source">Источник. Не может быть <c>null</c>.</param>
+        /// <remarks>Не подписывается на источник — это делает <see cref="Initialize"/>.</remarks>
         protected ProjectionNode(IObservableList<TSource> source)
         {
             Source = source ?? throw new ArgumentNullException(nameof(source));
         }
 
         /// <summary>
-        /// Считывает текущее состояние <see cref="Source"/> и подписывается на его изменения.
+        /// Читает текущее состояние источника, генерирует <c>OnAdd</c> для каждого
+        /// элемента, подписывается на изменения.
         /// </summary>
-        /// <exception cref="InvalidOperationException">
-        /// Если метод вызван повторно.
-        /// </exception>
-        /// <exception cref="ObjectDisposedException">
-        /// Если узел уже освобождён.
-        /// </exception>
-        /// <remarks>
-        /// <para>
-        /// Метод вызывается ровно один раз — из конструктора наследника,
-        /// после инициализации его полей. Ручной вызов извне не предполагается.
-        /// </para>
-        /// <para>
-        /// На каждый существующий элемент <see cref="Source"/> генерируется
-        /// синтетический <see cref="ChangeType.Add"/> через <see cref="OnAdd"/>.
-        /// Это значит, что N элементов источника дадут N вызовов <c>OnAdd</c>
-        /// на этапе инициализации — см. README, раздел 4.6.
-        /// </para>
-        /// </remarks>
+        /// <exception cref="InvalidOperationException">Если метод вызван повторно.</exception>
         protected void Initialize()
         {
             if (_isInitialized)
@@ -86,147 +41,88 @@ namespace ReactiveCollections
 
             _isInitialized = true;
 
-            foreach (var item in Source)
+            for (int i = 0; i < Source.Count; i++)
             {
-                OnAdd(Change<TSource>.Add(item));
+                OnAdd(new AddChange<TSource>(Source[i], i));
             }
 
             Source.Changed += OnSourceChanged;
         }
 
-        /// <summary>
-        /// Отписывается от источника при <see cref="ObservableNode{TResult}.Dispose"/>.
-        /// </summary>
-        /// <remarks>
-        /// Источник <b>не</b> удаляется — это ответственность вызывающего.
-        /// Если <see cref="Initialize"/> не был вызван (например, конструктор
-        /// наследника бросил исключение), отписка не производится.
-        /// </remarks>
         protected override void DisposeCore()
         {
             if (_isInitialized)
-            {
                 Source.Changed -= OnSourceChanged;
-            }
-
             base.DisposeCore();
         }
 
-        /// <summary>
-        /// Обработчик событий источника. Диспетчеризует по <see cref="Change{T}.Type"/>.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <see cref="ChangeType.Batch"/> разворачивается рекурсивно: каждое
-        /// вложенное изменение обрабатывается как обычное. Это значит, что
-        /// <c>OnAdd</c>/<c>OnRemove</c>/... не знают о том, что произошло
-        /// внутри батча — они получают отдельные события.
-        /// </para>
-        /// <para>
-        /// <see cref="ChangeType.Reset"/> внутри батча не разворачивается —
-        /// это атомарное событие.
-        /// </para>
-        /// </remarks>
+        // -------------------------------------------------------------------
+        // Диспетчеризация
+        // -------------------------------------------------------------------
+
         private void OnSourceChanged(Change<TSource> change)
         {
-            if (change.Type == ChangeType.Batch)
+            switch (change)
             {
-                foreach (var inner in change.Changes!)
-                    OnSourceChanged(inner);
-                return;
-            }
-
-            switch (change.Type)
-            {
-                case ChangeType.Add:
-                    OnAdd(change);
+                case BatchChange<TSource> batch:
+                    foreach (var inner in batch.Changes)
+                        OnSourceChanged(inner);
                     break;
 
-                case ChangeType.Remove:
-                    OnRemove(change);
-                    break;
+                case AddChange<TSource> add: OnAdd(add); break;
+                case RemoveChange<TSource> remove: OnRemove(remove); break;
+                case UpdateChange<TSource> update: OnUpdate(update); break;
+                case ReplaceChange<TSource> replace: OnReplace(replace); break;
+                case MoveChange<TSource> move: OnMove(move); break;
+                case ResetChange<TSource> reset: OnReset(reset); break;
 
-                case ChangeType.Replace:
-                    OnReplace(change);
-                    break;
-
-                case ChangeType.Update:
-                    OnUpdate(change);
-                    break;
-
-                case ChangeType.Reset:
-                    OnReset(change);
-                    break;
+                default:
+                    throw new NotSupportedException(
+                        $"Unsupported change: {change.GetType().Name}");
             }
         }
 
+        // -------------------------------------------------------------------
+        // Хуки
+        // -------------------------------------------------------------------
+
+        /// <summary>Добавление элемента источника. По умолчанию — no-op.</summary>
+        protected virtual void OnAdd(AddChange<TSource> change) { }
+
+        /// <summary>Удаление элемента источника. По умолчанию — no-op.</summary>
+        protected virtual void OnRemove(RemoveChange<TSource> change) { }
+
+        /// <summary>Обновление элемента источника. По умолчанию — no-op.</summary>
+        protected virtual void OnUpdate(UpdateChange<TSource> change) { }
+
         /// <summary>
-        /// Хук добавления элемента источника. По умолчанию — no-op.
+        /// Замена элемента источника. По умолчанию эмулируется двумя
+        /// изменениями: <see cref="RemoveChange{TSource}"/> и
+        /// <see cref="AddChange{TSource}"/>.
         /// </summary>
-        /// <param name="change">Изменение типа <see cref="ChangeType.Add"/>.</param>
-        protected virtual void OnAdd(Change<TSource> change)
+        protected virtual void OnReplace(ReplaceChange<TSource> change)
         {
+            OnRemove(new RemoveChange<TSource>(change.OldItem, change.Index));
+            OnAdd(new AddChange<TSource>(change.NewItem, change.Index));
         }
 
         /// <summary>
-        /// Хук удаления элемента источника. По умолчанию — no-op.
+        /// Перемещение элемента источника. По умолчанию бросает
+        /// <see cref="NotSupportedException"/> — наследник должен либо
+        /// реализовать трансляцию индексов, либо явно признать, что Move
+        /// для него не поддерживается.
         /// </summary>
-        /// <param name="change">Изменение типа <see cref="ChangeType.Remove"/>.</param>
-        protected virtual void OnRemove(Change<TSource> change)
+        protected virtual void OnMove(MoveChange<TSource> change)
         {
+            throw new NotSupportedException(
+                $"{GetType().Name} does not support Move changes.");
         }
 
         /// <summary>
-        /// Хук обновления элемента источника. По умолчанию — no-op.
+        /// Полный сброс источника. По умолчанию очищает результат через
+        /// <see cref="ResetInternal"/>.
         /// </summary>
-        /// <param name="change">Изменение типа <see cref="ChangeType.Update"/>.</param>
-        protected virtual void OnUpdate(Change<TSource> change)
-        {
-        }
-
-        /// <summary>
-        /// Хук замены элемента источника. По умолчанию эмулирует замену через
-        /// <see cref="OnRemove"/> + <see cref="OnAdd"/>.
-        /// </summary>
-        /// <param name="change">Изменение типа <see cref="ChangeType.Replace"/>.</param>
-        /// <exception cref="InvalidOperationException">
-        /// Если <see cref="Change{T}.OldItem"/> не заполнен.
-        /// </exception>
-        /// <remarks>
-        /// <para>
-        /// Ожидается, что <see cref="Change{T}.OldItem"/> содержит заменяемый
-        /// элемент. Если он равен <c>default</c> (для ссылочных типов — <c>null</c>,
-        /// для значимых — <c>default(T)</c>), выбрасывается исключение.
-        /// </para>
-        /// <para>
-        /// Наследники могут переопределить этот метод, чтобы дать более точную
-        /// семантику. Например, <see cref="FilterNode{T}"/> реализует замену
-        /// с учётом предиката, а <see cref="SelectNode{TSource, TResult}"/> —
-        /// через <c>_updater</c>.
-        /// </para>
-        /// </remarks>
-        protected virtual void OnReplace(Change<TSource> change)
-        {
-            if (change.OldItem is null)
-                throw new InvalidOperationException(
-                    "Change.Replace was raised without OldItem.");
-
-            // Стандартное поведение: удалить старое, добавить новое.
-            OnRemove(Change<TSource>.Remove(change.OldItem));
-            OnAdd(Change<TSource>.Add(change.Item));
-        }
-
-        /// <summary>
-        /// Хук полного сброса источника. По умолчанию очищает результат
-        /// через <see cref="ObservableNode{T}.ResetInternal"/>.
-        /// </summary>
-        /// <param name="change">Изменение типа <see cref="ChangeType.Reset"/>.</param>
-        /// <remarks>
-        /// <see cref="ObservableNode{T}.ResetInternal"/> не райзит событие,
-        /// если результат уже пуст. Учитывай это в наследниках, если логика
-        /// <c>Reset</c> должна отрабатывать всегда.
-        /// </remarks>
-        protected virtual void OnReset(Change<TSource> change)
+        protected virtual void OnReset(ResetChange<TSource> change)
         {
             ResetInternal();
         }

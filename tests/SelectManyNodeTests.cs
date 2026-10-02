@@ -4,14 +4,11 @@ namespace ReactiveCollections.Tests
 {
     /// <summary>
     /// Тесты <see cref="SelectManyNode{TSource, TResult}"/> — flattening
-    /// вложенных реактивных коллекций.
+    /// вложенных реактивных коллекций (Concat-модель).
     /// </summary>
     [TestFixture]
     public class SelectManyNodeTests
     {
-        /// <summary>
-        /// Вспомогательная модель: контейнер с собственной реактивной коллекцией.
-        /// </summary>
         private sealed class Bag
         {
             public int Id;
@@ -41,16 +38,29 @@ namespace ReactiveCollections.Tests
         }
 
         [Test]
-        public void Constructor_InitializesFromNestedCollections()
+        public void Constructor_ConcatOrder_PreservesSourceOrder()
         {
             var source = new ObservableList<Bag>();
             source.Add(CreateBag(1, 1, 2));
             source.Add(CreateBag(2, 3));
+            source.Add(CreateBag(3, 4, 5));
 
             var flat = source.SelectMany(b => b.Items);
 
-            Assert.That(flat.Count, Is.EqualTo(3));
-            Assert.That(flat, Is.EqualTo(new[] { 1, 2, 3 }));
+            Assert.That(flat, Is.EqualTo(new[] { 1, 2, 3, 4, 5 }));
+        }
+
+        [Test]
+        public void Constructor_EmptyInnerInMiddle_DoesNotAffectOrder()
+        {
+            var source = new ObservableList<Bag>();
+            source.Add(CreateBag(1, 1));
+            source.Add(new Bag { Id = 2 });   // пустой
+            source.Add(CreateBag(3, 3));
+
+            var flat = source.SelectMany(b => b.Items);
+
+            Assert.That(flat, Is.EqualTo(new[] { 1, 3 }));
         }
 
         [Test]
@@ -80,19 +90,33 @@ namespace ReactiveCollections.Tests
         }
 
         // -------------------------------------------------------------------
-        // Add из источника
+        // Add в источнике
         // -------------------------------------------------------------------
 
         [Test]
-        public void Add_NewSourceItem_FlattensItsItems()
+        public void Add_NewSourceItem_AppendsBlockAtEnd()
         {
             var source = new ObservableList<Bag>();
+            source.Add(CreateBag(1, 10));
             var flat = source.SelectMany(b => b.Items);
 
-            source.Add(CreateBag(1, 10, 20));
+            source.Add(CreateBag(2, 20, 30));
 
-            Assert.That(flat.Count, Is.EqualTo(2));
-            Assert.That(flat, Is.EqualTo(new[] { 10, 20 }));
+            Assert.That(flat, Is.EqualTo(new[] { 10, 20, 30 }));
+        }
+
+        [Test]
+        public void AddAt_InsertsBlockAtCorrectPosition()
+        {
+            var source = new ObservableList<Bag>();
+            source.Add(CreateBag(1, 1));
+            source.Add(CreateBag(2, 2));
+            var flat = source.SelectMany(b => b.Items);
+
+            // Вставляем между b1 и b2
+            source.AddAt(1, CreateBag(3, 30, 31));
+
+            Assert.That(flat, Is.EqualTo(new[] { 1, 30, 31, 2 }));
         }
 
         [Test]
@@ -111,25 +135,26 @@ namespace ReactiveCollections.Tests
         // -------------------------------------------------------------------
 
         [Test]
-        public void Remove_SourceItem_RemovesItsContribution()
+        public void Remove_MiddleBag_RemovesOnlyItsBlock()
         {
             var source = new ObservableList<Bag>();
             var b1 = CreateBag(1, 1, 2);
-            var b2 = CreateBag(2, 3);
+            var b2 = CreateBag(2, 3, 4);
+            var b3 = CreateBag(3, 5);
             source.Add(b1);
             source.Add(b2);
+            source.Add(b3);
 
             var flat = source.SelectMany(b => b.Items);
-            Assert.That(flat.Count, Is.EqualTo(3));
+            Assert.That(flat, Is.EqualTo(new[] { 1, 2, 3, 4, 5 }));
 
-            source.Remove(b1);
+            source.Remove(b2);
 
-            Assert.That(flat.Count, Is.EqualTo(1));
-            Assert.That(flat[0], Is.EqualTo(3));
+            Assert.That(flat, Is.EqualTo(new[] { 1, 2, 5 }));
         }
 
         [Test]
-        public void Remove_NonExistentSourceItem_DoesNothing()
+        public void Remove_NonExistent_DoesNothing()
         {
             var source = new ObservableList<Bag>();
             source.Add(CreateBag(1, 1));
@@ -141,11 +166,11 @@ namespace ReactiveCollections.Tests
         }
 
         // -------------------------------------------------------------------
-        // Update источника: та же ссылка
+        // Update источника
         // -------------------------------------------------------------------
 
         [Test]
-        public void Update_SameInnerReference_DoesNothing()
+        public void Update_SameInnerReference_KeepsBlock()
         {
             var source = new ObservableList<Bag>();
             var b1 = CreateBag(1, 10, 20);
@@ -154,29 +179,26 @@ namespace ReactiveCollections.Tests
             var flat = source.SelectMany(b => b.Items);
             var originalItems = b1.Items;
 
-            // меняем поле Id, но Items остаётся тем же
+            bool raised = false;
+            flat.Changed += _ => raised = true;
+
             b1.Id = 2;
             source.Update(b1);
 
-            Assert.That(flat.Count, Is.EqualTo(2));
+            Assert.That(flat, Is.EqualTo(new[] { 10, 20 }));
             Assert.That(ReferenceEquals(b1.Items, originalItems), Is.True);
+            Assert.That(raised, Is.False);
         }
 
-        // -------------------------------------------------------------------
-        // Update источника: новая ссылка
-        // -------------------------------------------------------------------
-
         [Test]
-        public void Update_NewInnerReference_SwitchesSubscription()
+        public void Update_NewInnerReference_ReplacesBlock()
         {
             var source = new ObservableList<Bag>();
             var b1 = CreateBag(1, 10, 20);
             source.Add(b1);
 
             var flat = source.SelectMany(b => b.Items);
-            Assert.That(flat.Count, Is.EqualTo(2));
 
-            // заменяем внутреннюю коллекцию
             b1.Items = new ObservableList<int>();
             b1.Items.Add(100);
             b1.Items.Add(200);
@@ -184,7 +206,6 @@ namespace ReactiveCollections.Tests
 
             source.Update(b1);
 
-            Assert.That(flat.Count, Is.EqualTo(3));
             Assert.That(flat, Is.EqualTo(new[] { 100, 200, 300 }));
         }
 
@@ -201,10 +222,93 @@ namespace ReactiveCollections.Tests
             b1.Items = new ObservableList<int>();
             source.Update(b1);
 
-            // изменения в старой коллекции больше не влияют
             oldInner.Add(999);
 
             Assert.That(flat.Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void Update_MiddleBlock_KeepsOtherBlocksIntact()
+        {
+            var source = new ObservableList<Bag>();
+            var b1 = CreateBag(1, 1);
+            var b2 = CreateBag(2, 2, 3);
+            var b3 = CreateBag(3, 4);
+            source.Add(b1);
+            source.Add(b2);
+            source.Add(b3);
+
+            var flat = source.SelectMany(b => b.Items);
+
+            b2.Items = new ObservableList<int>();
+            b2.Items.Add(99);
+            source.Update(b2);
+
+            Assert.That(flat, Is.EqualTo(new[] { 1, 99, 4 }));
+        }
+
+        // -------------------------------------------------------------------
+        // Replace в источнике
+        // -------------------------------------------------------------------
+
+        [Test]
+        public void Replace_SourceItem_SwapsBlock()
+        {
+            var source = new ObservableList<Bag>();
+            var b1 = CreateBag(1, 10, 20);
+            var b2 = CreateBag(2, 100, 200);
+            source.Add(b1);
+
+            var flat = source.SelectMany(b => b.Items);
+            Assert.That(flat, Is.EqualTo(new[] { 10, 20 }));
+
+            source.Replace(b1, b2);
+
+            Assert.That(flat, Is.EqualTo(new[] { 100, 200 }));
+        }
+
+        [Test]
+        public void Replace_SameInnerReference_DoesNotChangeFlat()
+        {
+            var source = new ObservableList<Bag>();
+            var b1 = CreateBag(1, 10, 20);
+            source.Add(b1);
+
+            var flat = source.SelectMany(b => b.Items);
+
+            bool raised = false;
+            flat.Changed += _ => raised = true;
+
+            // b2 с той же самой inner-коллекцией
+            var b2 = new Bag { Id = 2, Items = b1.Items };
+            source.Replace(b1, b2);
+
+            Assert.That(flat, Is.EqualTo(new[] { 10, 20 }));
+            Assert.That(raised, Is.False);
+        }
+
+        // -------------------------------------------------------------------
+        // Move в источнике
+        // -------------------------------------------------------------------
+
+        [Test]
+        public void Move_SourceBlock_RepositionsFlatBlock()
+        {
+            var source = new ObservableList<Bag>();
+            var b1 = CreateBag(1, 1, 2);
+            var b2 = CreateBag(2, 3);
+            var b3 = CreateBag(3, 4, 5);
+            source.Add(b1);
+            source.Add(b2);
+            source.Add(b3);
+
+            var flat = source.SelectMany(b => b.Items);
+            Assert.That(flat, Is.EqualTo(new[] { 1, 2, 3, 4, 5 }));
+
+            // b1 (блок [1,2]) в конец
+            source.Move(0, 2);
+
+            Assert.That(flat, Is.EqualTo(new[] { 3, 4, 5, 1, 2 }));
         }
 
         // -------------------------------------------------------------------
@@ -222,8 +326,48 @@ namespace ReactiveCollections.Tests
 
             b1.Items.Add(20);
 
-            Assert.That(flat.Count, Is.EqualTo(2));
             Assert.That(flat, Is.EqualTo(new[] { 10, 20 }));
+        }
+
+        [Test]
+        public void InnerAddAt_InsertsAtCorrectFlatPosition()
+        {
+            var source = new ObservableList<Bag>();
+            var b1 = CreateBag(1, 1, 2, 3);
+            var b2 = CreateBag(2, 5, 7);
+            source.Add(b1);
+            source.Add(b2);
+
+            var flat = source.SelectMany(b => b.Items);
+
+            AddChange<int>? received = null;
+            flat.Changed += c => received = (AddChange<int>)c;
+
+            b2.Items.AddAt(1, 6);
+
+            Assert.That(flat, Is.EqualTo(new[] { 1, 2, 3, 5, 6, 7 }));
+            Assert.That(received, Is.Not.Null);
+            Assert.That(received!.Index, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void InnerUpdate_TranslatesIndexToFlat()
+        {
+            var source = new ObservableList<Bag>();
+            var b1 = CreateBag(1, 10);
+            var b2 = CreateBag(2, 20, 30);
+            source.Add(b1);
+            source.Add(b2);
+
+            var flat = source.SelectMany(b => b.Items);
+
+            UpdateChange<int>? received = null;
+            flat.Changed += c => received = (UpdateChange<int>)c;
+
+            b2.Items.UpdateAt(1);
+
+            Assert.That(received, Is.Not.Null);
+            Assert.That(received!.Index, Is.EqualTo(2));   // 1 (b1.Count) + 1
         }
 
         [Test]
@@ -237,12 +381,11 @@ namespace ReactiveCollections.Tests
 
             b1.Items.Remove(10);
 
-            Assert.That(flat.Count, Is.EqualTo(1));
-            Assert.That(flat[0], Is.EqualTo(20));
+            Assert.That(flat, Is.EqualTo(new[] { 20 }));
         }
 
         [Test]
-        public void InnerUpdate_RaisesUpdate()
+        public void InnerUpdate_RaisesUpdateChange()
         {
             var source = new ObservableList<Bag>();
             var b1 = CreateBag(1, 10);
@@ -255,12 +398,34 @@ namespace ReactiveCollections.Tests
 
             b1.Items.Update(10);
 
-            Assert.That(received, Is.Not.Null);
-            Assert.That(received!.Type, Is.EqualTo(ChangeType.Update));
+            Assert.That(received, Is.TypeOf<UpdateChange<int>>());
+            Assert.That(((UpdateChange<int>)received!).Index, Is.EqualTo(0));
         }
 
         [Test]
-        public void InnerReset_RemovesContributionAndRebuilds()
+        public void InnerMove_TranslatesIndexToFlat()
+        {
+            var source = new ObservableList<Bag>();
+            var b1 = CreateBag(1, 1, 2, 3);
+            var b2 = CreateBag(2, 10, 11, 12);
+            source.Add(b1);
+            source.Add(b2);
+
+            var flat = source.SelectMany(b => b.Items);
+
+            MoveChange<int>? received = null;
+            flat.Changed += c => received = (MoveChange<int>)c;
+
+            b2.Items.Move(2, 0);
+
+            Assert.That(flat, Is.EqualTo(new[] { 1, 2, 3, 12, 10, 11 }));
+            Assert.That(received, Is.Not.Null);
+            Assert.That(received!.FromIndex, Is.EqualTo(5));
+            Assert.That(received.ToIndex, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void InnerReset_KeepsOtherBlocksIntact()
         {
             var source = new ObservableList<Bag>();
             var b1 = CreateBag(1, 10, 20);
@@ -269,34 +434,29 @@ namespace ReactiveCollections.Tests
             source.Add(b2);
 
             var flat = source.SelectMany(b => b.Items);
-            Assert.That(flat.Count, Is.EqualTo(3));
+            Assert.That(flat, Is.EqualTo(new[] { 10, 20, 30 }));
+
+            b1.Items.Reset();
+
+            Assert.That(flat, Is.EqualTo(new[] { 30 }));
+        }
+
+        [Test]
+        public void InnerReset_ThenAdd_PlacesInCorrectBlock()
+        {
+            var source = new ObservableList<Bag>();
+            var b1 = CreateBag(1, 10, 20);
+            var b2 = CreateBag(2, 30);
+            source.Add(b1);
+            source.Add(b2);
+
+            var flat = source.SelectMany(b => b.Items);
 
             b1.Items.Reset();
             b1.Items.Add(100);
 
-            Assert.That(flat.Count, Is.EqualTo(2));
-            Assert.That(flat, Is.EqualTo(new[] { 30, 100 }));
-        }
-
-        // -------------------------------------------------------------------
-        // Replace в источнике
-        // -------------------------------------------------------------------
-
-        [Test]
-        public void Replace_SourceItem_ReplacesContribution()
-        {
-            var source = new ObservableList<Bag>();
-            var b1 = CreateBag(1, 10, 20);
-            var b2 = CreateBag(2, 100, 200);
-            source.Add(b1);
-
-            var flat = source.SelectMany(b => b.Items);
-            Assert.That(flat, Is.EqualTo(new[] { 10, 20 }));
-
-            source.Replace(b1, b2);
-
-            Assert.That(flat.Count, Is.EqualTo(2));
-            Assert.That(flat, Is.EqualTo(new[] { 100, 200 }));
+            // блок b1 находится перед блоком b2
+            Assert.That(flat, Is.EqualTo(new[] { 100, 30 }));
         }
 
         // -------------------------------------------------------------------
@@ -311,11 +471,28 @@ namespace ReactiveCollections.Tests
             source.Add(CreateBag(2, 30));
 
             var flat = source.SelectMany(b => b.Items);
-            Assert.That(flat.Count, Is.EqualTo(3));
 
             source.Reset();
 
             Assert.That(flat.Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void Reset_Source_RaisesSingleResetChange()
+        {
+            var source = new ObservableList<Bag>();
+            source.Add(CreateBag(1, 10));
+            source.Add(CreateBag(2, 20));
+
+            var flat = source.SelectMany(b => b.Items);
+
+            var events = new List<Change<int>>();
+            flat.Changed += c => events.Add(c);
+
+            source.Reset();
+
+            Assert.That(events.Count, Is.EqualTo(1));
+            Assert.That(events[0], Is.TypeOf<ResetChange<int>>());
         }
 
         [Test]
@@ -328,39 +505,51 @@ namespace ReactiveCollections.Tests
             source.Reset();
             source.Add(CreateBag(2, 20));
 
-            Assert.That(flat.Count, Is.EqualTo(1));
-            Assert.That(flat[0], Is.EqualTo(20));
+            Assert.That(flat, Is.EqualTo(new[] { 20 }));
+        }
+
+        [Test]
+        public void Reset_Source_ThenInnerChanges_StillWork()
+        {
+            var source = new ObservableList<Bag>();
+            source.Add(CreateBag(1, 10));
+            var flat = source.SelectMany(b => b.Items);
+
+            source.Reset();
+
+            var b2 = CreateBag(2, 20);
+            source.Add(b2);
+
+            // после Reset подписки должны быть восстановлены корректно
+            b2.Items.Add(30);
+
+            Assert.That(flat, Is.EqualTo(new[] { 20, 30 }));
         }
 
         // -------------------------------------------------------------------
-        // Одинаковые по Equals элементы из разных коллекций
+        // Дубликаты между разными inner
         // -------------------------------------------------------------------
 
         [Test]
-        public void DuplicateEquals_FromDifferentInners_AreTrackedSeparately()
+        public void DuplicateValues_DifferentInners_TrackedSeparately()
         {
-            // Оба Bag добавляют по элементу с одинаковым Id.
-            // Это разные экземпляры, но Equal по Player.Equals (Id).
             var source = new ObservableList<Bag>();
             var b1 = CreateBag(1);
             var b2 = CreateBag(2);
-
             source.Add(b1);
             source.Add(b2);
 
             var flat = source.SelectMany(b => b.Items);
-            // оба добавляют по элементу Id = 1 — сейчас пусты
-            Assert.That(flat.Count, Is.EqualTo(0));
 
             b1.Items.Add(1);
             b2.Items.Add(1);
 
-            Assert.That(flat.Count, Is.EqualTo(2));
+            Assert.That(flat, Is.EqualTo(new[] { 1, 1 }));
 
-            // удаление из b1 не должно задеть элемент из b2
-            b1.Items.Remove(1);
+            // удаление из b1 не задевает блок b2
+            b1.Items.RemoveAt(0);
 
-            Assert.That(flat.Count, Is.EqualTo(1));
+            Assert.That(flat, Is.EqualTo(new[] { 1 }));
         }
 
         // -------------------------------------------------------------------
