@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace ReactiveCollections
 {
@@ -81,5 +82,39 @@ namespace ReactiveCollections
             this IObservableList<TSource> source,
             Func<TSource, IObservableList<TResult>> selector)
             => new SelectManyNode<TSource, TResult>(source, selector);
+
+        /// <summary>
+        /// Сортирует элементы источника по ключу.
+        /// </summary>
+        /// <param name="selector">Селектор ключа сортировки.</param>
+        /// <remarks>Порядок элементов с равными ключами не определён.</remarks>
+        public static OrderByNode<TSource, TKey> OrderBy<TSource, TKey>(
+            this IObservableList<TSource> source,
+            Func<TSource, TKey> selector)
+            => new OrderByNode<TSource, TKey>(source, selector);
+
+        /// <inheritdoc cref="OrderBy{TSource, TKey}(IObservableList{TSource}, Func{TSource, TKey})"/>
+        public static OrderByNode<TSource, TKey> OrderBy<TSource, TKey>(
+            this IObservableList<TSource> source,
+            Func<TSource, TKey> selector,
+            IComparer<TKey>? comparer)
+            => new OrderByNode<TSource, TKey>(source, selector, comparer);
+
+        /// <summary>
+        /// Сортирует элементы источника по ключу в обратном порядке.
+        /// </summary>
+        /// <param name="selector">Селектор ключа сортировки.</param>
+        /// <remarks>Порядок элементов с равными ключами не определён.</remarks>
+        public static OrderByNode<TSource, TKey> OrderByDescending<TSource, TKey>(
+            this IObservableList<TSource> source,
+            Func<TSource, TKey> selector)
+            => new OrderByNode<TSource, TKey>(source, selector, descending: true);
+
+        /// <inheritdoc cref="OrderByDescending{TSource, TKey}(IObservableList{TSource}, Func{TSource, TKey})"/>
+        public static OrderByNode<TSource, TKey> OrderByDescending<TSource, TKey>(
+            this IObservableList<TSource> source,
+            Func<TSource, TKey> selector,
+            IComparer<TKey>? comparer)
+            => new OrderByNode<TSource, TKey>(source, selector, comparer, descending: true);
     }
 }
