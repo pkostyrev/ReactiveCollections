@@ -13,6 +13,48 @@ namespace ReactiveCollections
     /// </remarks>
     public abstract class Change<T>
     {
+        /// <summary>
+        /// Создаёт <see cref="AddChange{T}"/>.
+        /// </summary>
+        /// <param name="item">Добавленный элемент.</param>
+        /// <param name="index">Позиция элемента в источнике.</param>
+        public static AddChange<T> Add(T item, int index)
+            => new AddChange<T>(item, index);
+
+        /// <summary>Создаёт <see cref="RemoveChange{T}"/>.</summary>
+        /// <param name="item">Удалённый элемент.</param>
+        /// <param name="index">Позиция элемента до удаления.</param>
+        public static RemoveChange<T> Remove(T item, int index)
+            => new RemoveChange<T>(item, index);
+
+        /// <summary>Создаёт <see cref="UpdateChange{T}"/>.</summary>
+        /// <param name="item">Изменившийся элемент (та же ссылка).</param>
+        /// <param name="index">Позиция элемента в источнике.</param>
+        public static UpdateChange<T> Update(T item, int index)
+            => new UpdateChange<T>(item, index);
+
+        /// <summary>Создаёт <see cref="ReplaceChange{T}"/>.</summary>
+        /// <param name="oldItem">Заменяемый элемент.</param>
+        /// <param name="newItem">Новый элемент.</param>
+        /// <param name="index">Позиция замены.</param>
+        public static ReplaceChange<T> Replace(T oldItem, T newItem, int index)
+            => new ReplaceChange<T>(oldItem, newItem, index);
+
+        /// <summary>Создаёт <see cref="MoveChange{T}"/>.</summary>
+        /// <param name="item">Перемещённый элемент.</param>
+        /// <param name="fromIndex">Исходная позиция.</param>
+        /// <param name="toIndex">Конечная позиция.</param>
+        public static MoveChange<T> Move(T item, int fromIndex, int toIndex)
+            => new MoveChange<T>(item, fromIndex, toIndex);
+
+        /// <summary>Создаёт <see cref="ResetChange{T}"/>.</summary>
+        public static ResetChange<T> Reset()
+            => new ResetChange<T>();
+
+        /// <summary>Создаёт <see cref="BatchChange{T}"/>.</summary>
+        /// <param name="changes">Вложенные изменения.</param>
+        public static BatchChange<T> Batch(IReadOnlyList<Change<T>> changes)
+            => new BatchChange<T>(changes);
     }
 
     /// <summary>Добавление элемента.</summary>
