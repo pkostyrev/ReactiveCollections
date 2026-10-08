@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 
 namespace ReactiveCollections
 {
@@ -264,7 +265,7 @@ namespace ReactiveCollections
             }
 
             if (errors == null) return;
-            if (errors.Count == 1) throw errors[0];
+            if (errors.Count == 1) ExceptionDispatchInfo.Capture(errors[0]).Throw();
             throw new AggregateException(errors);
         }
 

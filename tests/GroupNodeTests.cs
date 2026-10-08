@@ -25,7 +25,7 @@ namespace ReactiveCollections.Tests
             source.Add(tom);
             source.Add(mike);
 
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             Assert.That(groups.Count, Is.EqualTo(2));
 
@@ -57,7 +57,7 @@ namespace ReactiveCollections.Tests
         public void Add_FirstItemWithKey_CreatesGroup()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
 
@@ -73,7 +73,7 @@ namespace ReactiveCollections.Tests
         public void Add_ItemWithExistingKey_ReusesGroup()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var tom = TestData.CreatePlayer(id: 2, name: "Tom", teamId: 10, level: 1);
@@ -95,7 +95,7 @@ namespace ReactiveCollections.Tests
         public void Add_FirstItemWithKey_RaisesGroupAddEvent()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             Change<Group<int, Player>>? received = null;
             groups.Changed += c => received = c;
@@ -113,7 +113,7 @@ namespace ReactiveCollections.Tests
         public void Add_ItemToExistingGroup_RaisesInnerAddEvent()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var tom = TestData.CreatePlayer(id: 2, name: "Tom", teamId: 10, level: 1);
@@ -134,7 +134,7 @@ namespace ReactiveCollections.Tests
         public void Add_ItemToExistingGroup_DoesNotRaiseGroupEvent()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             source.Add(TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1));
 
@@ -150,7 +150,7 @@ namespace ReactiveCollections.Tests
         public void Add_NewGroup_SubscriberSeesFirstInnerAdd()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             Change<Player>? innerChange = null;
             groups.Changed += change =>
@@ -171,7 +171,7 @@ namespace ReactiveCollections.Tests
         public void Add_DuplicateEquals_TwoEntriesInSameGroup()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var p1 = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var p2 = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
@@ -191,7 +191,7 @@ namespace ReactiveCollections.Tests
         public void AddAt_InsertsItemAtCorrectInnerIndex()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var tom = TestData.CreatePlayer(id: 2, name: "Tom", teamId: 10, level: 1);
@@ -213,7 +213,7 @@ namespace ReactiveCollections.Tests
         public void AddAt_BetweenItemsOfSameGroup_UsesSourceIndex()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var mike = TestData.CreatePlayer(id: 2, name: "Mike", teamId: 20, level: 1);
@@ -247,7 +247,7 @@ namespace ReactiveCollections.Tests
         public void Update_KeyUnchanged_KeepsItemInSameGroup()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             source.Add(bob);
@@ -267,7 +267,7 @@ namespace ReactiveCollections.Tests
         public void Update_KeyUnchanged_RaisesInnerUpdateEvent()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             source.Add(bob);
@@ -287,7 +287,7 @@ namespace ReactiveCollections.Tests
         public void Update_KeyChanged_MovesItemToAnotherGroup()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var tom = TestData.CreatePlayer(id: 2, name: "Tom", teamId: 10, level: 1);
@@ -317,7 +317,7 @@ namespace ReactiveCollections.Tests
         public void Update_KeyChangedAndOldGroupEmpty_RemovesOldGroup()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var mike = TestData.CreatePlayer(id: 2, name: "Mike", teamId: 20, level: 1);
@@ -339,7 +339,7 @@ namespace ReactiveCollections.Tests
         public void Update_KeyChanged_OldGroupEmpty_RaisesGroupRemoveThenAdd()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             source.Add(bob);
@@ -359,7 +359,7 @@ namespace ReactiveCollections.Tests
         public void Update_KeyChanged_OldGroupGetsRemove_NewGroupGetsAdd()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             source.Add(bob);
@@ -387,7 +387,7 @@ namespace ReactiveCollections.Tests
         public void Update_KeyChanged_NewGroupRaisesInnerAdd()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             source.Add(bob);
@@ -419,7 +419,7 @@ namespace ReactiveCollections.Tests
         public void UpdateAt_DuplicateEquals_UpdatesCorrectOccurrence()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var p1 = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var p2 = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
@@ -445,7 +445,7 @@ namespace ReactiveCollections.Tests
         public void Remove_FromNonEmptyGroup_KeepsGroup()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var tom = TestData.CreatePlayer(id: 2, name: "Tom", teamId: 10, level: 1);
@@ -466,7 +466,7 @@ namespace ReactiveCollections.Tests
         public void Remove_LastItem_RemovesGroup()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             source.Add(bob);
@@ -486,7 +486,7 @@ namespace ReactiveCollections.Tests
         public void Remove_NonExistent_DoesNothing()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var ghost = TestData.CreatePlayer(id: 99, name: "Ghost", teamId: 10, level: 1);
@@ -507,7 +507,7 @@ namespace ReactiveCollections.Tests
         public void RemoveAt_DuplicateEquals_RemovesCorrectOccurrence()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var p1 = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var p2 = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
@@ -531,7 +531,7 @@ namespace ReactiveCollections.Tests
         public void Replace_SameKey_ReplacesInPlace()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var alice = TestData.CreatePlayer(id: 3, name: "Alice", teamId: 10, level: 1);
@@ -551,7 +551,7 @@ namespace ReactiveCollections.Tests
         public void Replace_KeyChanged_MovesItemToAnotherGroup()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var mike = TestData.CreatePlayer(id: 2, name: "Mike", teamId: 20, level: 1);
@@ -577,7 +577,7 @@ namespace ReactiveCollections.Tests
         public void ReplaceAt_SameKey_PreservesGroupAndPosition()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var p1 = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var p2 = TestData.CreatePlayer(id: 2, name: "Tom", teamId: 10, level: 1);
@@ -604,7 +604,7 @@ namespace ReactiveCollections.Tests
         public void ReplaceAt_ChangedKey_MovesItemAndKeepsOldGroup()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var tom = TestData.CreatePlayer(id: 2, name: "Tom", teamId: 10, level: 1);
@@ -642,7 +642,7 @@ namespace ReactiveCollections.Tests
         public void Move_SameGroup_ReordersInnerItems()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var tom = TestData.CreatePlayer(id: 2, name: "Tom", teamId: 10, level: 1);
@@ -665,7 +665,7 @@ namespace ReactiveCollections.Tests
         public void Move_DuplicateEquals_MovesCorrectOccurrence()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var p1 = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var p2 = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
@@ -688,7 +688,7 @@ namespace ReactiveCollections.Tests
         public void Move_BetweenGroups_ReordersOnlySourcePositions()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             var bob = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1);
             var mike = TestData.CreatePlayer(id: 2, name: "Mike", teamId: 20, level: 1);
@@ -722,7 +722,7 @@ namespace ReactiveCollections.Tests
         public void Reset_ClearsGroups()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             source.Add(TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1));
             source.Add(TestData.CreatePlayer(id: 2, name: "Mike", teamId: 20, level: 1));
@@ -742,7 +742,7 @@ namespace ReactiveCollections.Tests
         public void Add_NullKey_ThrowsArgumentNullException()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => (string?)null);
+            var groups = source.ObserveGroupBy(p => (string?)null);
 
             Assert.Throws<ArgumentNullException>(() =>
                 source.Add(TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 1)));
@@ -756,7 +756,7 @@ namespace ReactiveCollections.Tests
         public void Dispose_UnsubscribesFromSource()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             bool received = false;
             groups.Changed += _ => received = true;
@@ -772,7 +772,7 @@ namespace ReactiveCollections.Tests
         public void Dispose_IsIdempotent()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             groups.Dispose();
 
@@ -783,7 +783,7 @@ namespace ReactiveCollections.Tests
         public void Dispose_DoesNotDisposeSource()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             groups.Dispose();
 

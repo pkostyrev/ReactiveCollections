@@ -18,7 +18,7 @@ namespace ReactiveCollections.Tests
             var source = new ObservableList<Player>();
             source.Add(TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 5));
 
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             Assert.That(views.Count, Is.EqualTo(1));
             Assert.That(views[0].Id, Is.EqualTo(1));
@@ -32,7 +32,7 @@ namespace ReactiveCollections.Tests
             var source = new ObservableList<Player>();
 
             Assert.Throws<ArgumentNullException>(() =>
-                source.Select<Player, PlayerView>(null!, TestData.Bind));
+                source.ObserveSelect<Player, PlayerView>(null!, TestData.Bind));
         }
 
         [Test]
@@ -41,7 +41,7 @@ namespace ReactiveCollections.Tests
             var source = new ObservableList<Player>();
 
             Assert.Throws<ArgumentNullException>(() =>
-                source.Select(p => new PlayerView(), null!));
+                source.ObserveSelect(p => new PlayerView(), null!));
         }
 
         // -------------------------------------------------------------------
@@ -52,7 +52,7 @@ namespace ReactiveCollections.Tests
         public void Add_CreatesResult()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             var player = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 5);
             source.Add(player);
@@ -66,7 +66,7 @@ namespace ReactiveCollections.Tests
         public void Add_RaisesAddChange()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             AddChange<PlayerView>? received = null;
             views.Changed += c => received = (AddChange<PlayerView>)c;
@@ -89,7 +89,7 @@ namespace ReactiveCollections.Tests
             source.Add(p1);
             source.Add(p2);
 
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             Assert.That(views.Count, Is.EqualTo(2));
             Assert.That(views[0], Is.Not.SameAs(views[1]));
@@ -102,7 +102,7 @@ namespace ReactiveCollections.Tests
             var p = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 5);
             source.Add(p);
 
-            var node = source.Select(x => (object)x, (_, _) => { });
+            var node = source.ObserveSelect(x => (object)x, (_, _) => { });
 
             Assert.That(node[0], Is.SameAs(p));
         }
@@ -115,7 +115,7 @@ namespace ReactiveCollections.Tests
         public void AddAt_InsertsResultAtCorrectPosition()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             source.Add(TestData.CreatePlayer(id: 1, name: "A", teamId: 10, level: 5));
             source.Add(TestData.CreatePlayer(id: 2, name: "B", teamId: 10, level: 5));
@@ -132,7 +132,7 @@ namespace ReactiveCollections.Tests
         public void AddAt_RaisesAddChangeWithIndex()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             source.Add(TestData.CreatePlayer(id: 1, name: "A", teamId: 10, level: 5));
             source.Add(TestData.CreatePlayer(id: 2, name: "B", teamId: 10, level: 5));
@@ -151,7 +151,7 @@ namespace ReactiveCollections.Tests
         public void AddAt_WithDuplicates_InsertsAtCorrectPosition()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             var p1 = TestData.CreatePlayer(id: 1, name: "A", teamId: 10, level: 5);
             var p2 = TestData.CreatePlayer(id: 1, name: "A", teamId: 10, level: 5); // Equals(p1)
@@ -177,7 +177,7 @@ namespace ReactiveCollections.Tests
         public void Update_ReusesExistingResult()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             var player = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 5);
             source.Add(player);
@@ -198,7 +198,7 @@ namespace ReactiveCollections.Tests
         public void Update_RaisesUpdateChangeWithSameResult()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             var player = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 5);
             source.Add(player);
@@ -220,7 +220,7 @@ namespace ReactiveCollections.Tests
         public void Update_NotInSource_DoesNothing()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             bool raised = false;
             views.Changed += _ => raised = true;
@@ -246,7 +246,7 @@ namespace ReactiveCollections.Tests
             source.Add(p1);
             source.Add(p2);
 
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             var first = views[0];
             var second = views[1];
@@ -268,7 +268,7 @@ namespace ReactiveCollections.Tests
         public void Remove_RemovesMappedResult()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             var player = TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 5);
             source.Add(player);
@@ -299,7 +299,7 @@ namespace ReactiveCollections.Tests
             source.Add(p2);
             source.Add(p3);
 
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             source.RemoveAt(1);
 
@@ -316,7 +316,7 @@ namespace ReactiveCollections.Tests
         public void RemoveAt_RaisesRemoveChangeWithIndex()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             source.Add(TestData.CreatePlayer(id: 1, name: "A", teamId: 10, level: 5));
             source.Add(TestData.CreatePlayer(id: 2, name: "B", teamId: 10, level: 5));
@@ -345,7 +345,7 @@ namespace ReactiveCollections.Tests
             source.Add(p1);
             source.Add(p2);
 
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             var view1 = views[0];
             var view2 = views[1];
@@ -374,7 +374,7 @@ namespace ReactiveCollections.Tests
             source.Add(p2);
             source.Add(p3);
 
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
             var middleView = views[1];
 
             var replacement = TestData.CreatePlayer(id: 99, name: "New", teamId: 20, level: 5);
@@ -397,7 +397,7 @@ namespace ReactiveCollections.Tests
 
             source.Add(p1);
 
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
             var originalView = views[0];
 
             ReplaceChange<PlayerView>? received = null;
@@ -428,7 +428,7 @@ namespace ReactiveCollections.Tests
             source.Add(p2);
             source.Add(p3);
 
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
             var oldView2 = views[1];
 
             ReplaceChange<PlayerView>? received = null;
@@ -459,7 +459,7 @@ namespace ReactiveCollections.Tests
             source.Add(p1);
             source.Add(p2);
 
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             var view1 = views[0];
             var view2 = views[1];
@@ -481,7 +481,7 @@ namespace ReactiveCollections.Tests
         public void Move_PreservesResultReference()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             source.Add(TestData.CreatePlayer(id: 1, name: "A", teamId: 10, level: 5));
             source.Add(TestData.CreatePlayer(id: 2, name: "B", teamId: 10, level: 5));
@@ -502,7 +502,7 @@ namespace ReactiveCollections.Tests
         public void Move_RaisesMoveChangeWithIndices()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             source.Add(TestData.CreatePlayer(id: 1, name: "A", teamId: 10, level: 5));
             source.Add(TestData.CreatePlayer(id: 2, name: "B", teamId: 10, level: 5));
@@ -523,7 +523,7 @@ namespace ReactiveCollections.Tests
         public void Move_Backward_PreservesIndices()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             source.Add(TestData.CreatePlayer(id: 1, name: "A", teamId: 10, level: 5));
             source.Add(TestData.CreatePlayer(id: 2, name: "B", teamId: 10, level: 5));
@@ -548,7 +548,7 @@ namespace ReactiveCollections.Tests
         public void Reset_ClearsProjection()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             source.Add(TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 15));
 
@@ -563,7 +563,7 @@ namespace ReactiveCollections.Tests
         public void Reset_AllowsFurtherChanges()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             source.Add(TestData.CreatePlayer(id: 1, name: "A", teamId: 10, level: 5));
 
@@ -579,7 +579,7 @@ namespace ReactiveCollections.Tests
         public void Reset_RaisesSingleResetChange()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             source.Add(TestData.CreatePlayer(id: 1, name: "A", teamId: 10, level: 5));
             source.Add(TestData.CreatePlayer(id: 2, name: "B", teamId: 10, level: 5));
@@ -603,7 +603,7 @@ namespace ReactiveCollections.Tests
             var source = new ObservableList<int>();
             source.Add(1);
 
-            var node = source.Select(x => x * 2, (_, _) => { });
+            var node = source.ObserveSelect(x => x * 2, (_, _) => { });
 
             Assert.DoesNotThrow(() => source.Update(1));
             Assert.That(node.Count, Is.EqualTo(1));
@@ -617,7 +617,7 @@ namespace ReactiveCollections.Tests
         public void Dispose_UnsubscribesFromSource()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             bool received = false;
             views.Changed += _ => received = true;
@@ -633,7 +633,7 @@ namespace ReactiveCollections.Tests
         public void Dispose_IsIdempotent()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             views.Dispose();
 
@@ -644,7 +644,7 @@ namespace ReactiveCollections.Tests
         public void Dispose_DoesNotDisposeSource()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             views.Dispose();
 

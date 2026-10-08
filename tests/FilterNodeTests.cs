@@ -20,7 +20,7 @@ namespace ReactiveCollections.Tests
             source.Add(TestData.CreatePlayer(id: 1, name: "Knight", teamId: 10, level: 15));
             source.Add(TestData.CreatePlayer(id: 2, name: "Ghost", teamId: 20, level: 0));
 
-            var alive = source.Filter(p => p.Level > 0);
+            var alive = source.ObserveWhere(p => p.Level > 0);
 
             Assert.That(alive.Count, Is.EqualTo(1));
             Assert.That(alive[0].Name, Is.EqualTo("Knight"));
@@ -34,7 +34,7 @@ namespace ReactiveCollections.Tests
         public void Add_MatchingItem_Appears()
         {
             var source = new ObservableList<Player>();
-            var alive = source.Filter(p => p.Level > 0);
+            var alive = source.ObserveWhere(p => p.Level > 0);
 
             source.Add(TestData.CreatePlayer(id: 1, name: "Knight", teamId: 10, level: 15));
 
@@ -45,7 +45,7 @@ namespace ReactiveCollections.Tests
         public void Add_NotMatchingItem_DoesNotAppear()
         {
             var source = new ObservableList<Player>();
-            var alive = source.Filter(p => p.Level > 0);
+            var alive = source.ObserveWhere(p => p.Level > 0);
 
             source.Add(TestData.CreatePlayer(id: 1, name: "Ghost", teamId: 20, level: 0));
 
@@ -56,7 +56,7 @@ namespace ReactiveCollections.Tests
         public void Add_MatchingItem_PreservesReference()
         {
             var source = new ObservableList<Player>();
-            var alive = source.Filter(p => p.Level > 0);
+            var alive = source.ObserveWhere(p => p.Level > 0);
 
             var knight = TestData.CreatePlayer(id: 1, name: "Knight", teamId: 10, level: 15);
             source.Add(knight);
@@ -77,7 +77,7 @@ namespace ReactiveCollections.Tests
             source.Add(3);   // валиден
             // source: [1, 2, 3], filter: [1, 3]
 
-            var odd = source.Filter(x => x % 2 == 1);
+            var odd = source.ObserveWhere(x => x % 2 == 1);
 
             source.AddAt(1, 5);
             // source: [1, 5, 2, 3], filter: [1, 5, 3]
@@ -92,7 +92,7 @@ namespace ReactiveCollections.Tests
             source.Add(1);
             source.Add(3);
 
-            var odd = source.Filter(x => x % 2 == 1);
+            var odd = source.ObserveWhere(x => x % 2 == 1);
 
             source.AddAt(1, 2);
 
@@ -107,7 +107,7 @@ namespace ReactiveCollections.Tests
             source.Add(20);
             source.Add(10);
 
-            var filter = source.Filter(x => x > 0);
+            var filter = source.ObserveWhere(x => x > 0);
 
             source.AddAt(2, 10);
             // source: [10, 20, 10, 10], filter: то же
@@ -123,7 +123,7 @@ namespace ReactiveCollections.Tests
             source.Add(20);
             source.Add(10);
 
-            var filter = source.Filter(x => x > 0);
+            var filter = source.ObserveWhere(x => x > 0);
 
             AddChange<int>? received = null;
             filter.Changed += c => received = (AddChange<int>)c;
@@ -144,7 +144,7 @@ namespace ReactiveCollections.Tests
             source.Add(3);
             // source: [1, 2, 3], filter: [1, 3]
 
-            var odd = source.Filter(x => x % 2 == 1);
+            var odd = source.ObserveWhere(x => x % 2 == 1);
 
             AddChange<int>? received = null;
             odd.Changed += c => received = (AddChange<int>)c;
@@ -166,7 +166,7 @@ namespace ReactiveCollections.Tests
         public void Remove_MatchingItem_IsRemoved()
         {
             var source = new ObservableList<Player>();
-            var alive = source.Filter(p => p.Level > 0);
+            var alive = source.ObserveWhere(p => p.Level > 0);
 
             var knight = TestData.CreatePlayer(id: 1, name: "Knight", teamId: 10, level: 15);
             source.Add(knight);
@@ -180,7 +180,7 @@ namespace ReactiveCollections.Tests
         public void Remove_NotMatchingItem_DoesNothing()
         {
             var source = new ObservableList<Player>();
-            var alive = source.Filter(p => p.Level > 0);
+            var alive = source.ObserveWhere(p => p.Level > 0);
 
             var ghost = TestData.CreatePlayer(id: 1, name: "Ghost", teamId: 20, level: 0);
             source.Add(ghost);
@@ -199,7 +199,7 @@ namespace ReactiveCollections.Tests
             source.Add(p1);
             source.Add(p2);
 
-            var alive = source.Filter(p => p.Level > 0);
+            var alive = source.ObserveWhere(p => p.Level > 0);
             Assert.That(alive.Count, Is.EqualTo(2));
 
             // source.Remove(p2) удаляет первый равный (p1) — фильтр
@@ -222,7 +222,7 @@ namespace ReactiveCollections.Tests
             source.Add(20);
             source.Add(10);
 
-            var filter = source.Filter(x => x > 0);
+            var filter = source.ObserveWhere(x => x > 0);
 
             source.RemoveAt(2);   // удаляем второй 10-й
 
@@ -237,7 +237,7 @@ namespace ReactiveCollections.Tests
             source.Add(2);   // невалиден
             source.Add(3);   // валиден
 
-            var odd = source.Filter(x => x % 2 == 1);
+            var odd = source.ObserveWhere(x => x % 2 == 1);
 
             source.RemoveAt(1);   // удаляем невалидный
 
@@ -253,7 +253,7 @@ namespace ReactiveCollections.Tests
             source.Add(3);
             // source: [1, 2, 3], filter: [1, 3]
 
-            var odd = source.Filter(x => x % 2 == 1);
+            var odd = source.ObserveWhere(x => x % 2 == 1);
 
             source.RemoveAt(2);   // удаляем 3 (source index 2)
             // source: [1, 2], filter: [1]
@@ -270,7 +270,7 @@ namespace ReactiveCollections.Tests
             source.Add(1);
             // source: [1, 2, 1], filter: [1, 1]
 
-            var odd = source.Filter(x => x % 2 == 1);
+            var odd = source.ObserveWhere(x => x % 2 == 1);
 
             source.RemoveAt(2);   // удаляем второй 1 (source index 2)
             // source: [1, 2], filter: [1]
@@ -287,7 +287,7 @@ namespace ReactiveCollections.Tests
         public void Update_ItemStartsMatching_IsAdded()
         {
             var source = new ObservableList<Player>();
-            var alive = source.Filter(p => p.Level > 0);
+            var alive = source.ObserveWhere(p => p.Level > 0);
 
             var ghost = TestData.CreatePlayer(id: 1, name: "Ghost", teamId: 20, level: 0);
             source.Add(ghost);
@@ -303,7 +303,7 @@ namespace ReactiveCollections.Tests
         public void Update_ItemStopsMatching_IsRemoved()
         {
             var source = new ObservableList<Player>();
-            var alive = source.Filter(p => p.Level > 0);
+            var alive = source.ObserveWhere(p => p.Level > 0);
 
             var knight = TestData.CreatePlayer(id: 1, name: "Knight", teamId: 10, level: 100);
             source.Add(knight);
@@ -318,7 +318,7 @@ namespace ReactiveCollections.Tests
         public void Update_ItemStillMatching_RaisesUpdate()
         {
             var source = new ObservableList<Player>();
-            var alive = source.Filter(p => p.Level > 0);
+            var alive = source.ObserveWhere(p => p.Level > 0);
 
             var knight = TestData.CreatePlayer(id: 1, name: "Knight", teamId: 10, level: 100);
             source.Add(knight);
@@ -337,7 +337,7 @@ namespace ReactiveCollections.Tests
         public void Update_NotInFilter_StillNotMatching_DoesNothing()
         {
             var source = new ObservableList<int>();
-            var node = source.Filter(x => x % 2 == 1);
+            var node = source.ObserveWhere(x => x % 2 == 1);
 
             source.Add(2);
 
@@ -358,7 +358,7 @@ namespace ReactiveCollections.Tests
             source.Add(20);
             source.Add(10);
 
-            var filter = source.Filter(x => x > 0);
+            var filter = source.ObserveWhere(x => x > 0);
 
             UpdateChange<int>? received = null;
             filter.Changed += c => received = (UpdateChange<int>)c;
@@ -378,7 +378,7 @@ namespace ReactiveCollections.Tests
             source.Add(3);
             // source: [1, 2, 3], filter: [1, 3]
 
-            var odd = source.Filter(x => x % 2 == 1);
+            var odd = source.ObserveWhere(x => x % 2 == 1);
 
             UpdateChange<int>? received = null;
             odd.Changed += c => received = (UpdateChange<int>)c;
@@ -400,7 +400,7 @@ namespace ReactiveCollections.Tests
             var source = new ObservableList<int>();
             source.Add(1);
 
-            var node = source.Filter(x => x % 2 == 1);
+            var node = source.ObserveWhere(x => x % 2 == 1);
 
             source.Replace(1, 3);
 
@@ -414,7 +414,7 @@ namespace ReactiveCollections.Tests
             var source = new ObservableList<int>();
             source.Add(1);
 
-            var node = source.Filter(x => x % 2 == 1);
+            var node = source.ObserveWhere(x => x % 2 == 1);
 
             source.Replace(1, 2);
 
@@ -427,7 +427,7 @@ namespace ReactiveCollections.Tests
             var source = new ObservableList<int>();
             source.Add(2);
 
-            var node = source.Filter(x => x % 2 == 1);
+            var node = source.ObserveWhere(x => x % 2 == 1);
 
             source.Replace(2, 3);
 
@@ -441,7 +441,7 @@ namespace ReactiveCollections.Tests
             var source = new ObservableList<int>();
             source.Add(2);
 
-            var node = source.Filter(x => x % 2 == 1);
+            var node = source.ObserveWhere(x => x % 2 == 1);
 
             source.Replace(2, 4);
 
@@ -454,7 +454,7 @@ namespace ReactiveCollections.Tests
             var source = new ObservableList<int>();
             source.Add(1);
 
-            var node = source.Filter(x => x % 2 == 1);
+            var node = source.ObserveWhere(x => x % 2 == 1);
 
             Change<int>? received = null;
             node.Changed += c => received = c;
@@ -477,7 +477,7 @@ namespace ReactiveCollections.Tests
             source.Add(3);
             // source: [1, 2, 3], filter: [1, 3]
 
-            var odd = source.Filter(x => x % 2 == 1);
+            var odd = source.ObserveWhere(x => x % 2 == 1);
 
             ReplaceChange<int>? received = null;
             odd.Changed += c => received = (ReplaceChange<int>)c;
@@ -504,7 +504,7 @@ namespace ReactiveCollections.Tests
             source.Add(3);
             source.Add(5);
 
-            var odd = source.Filter(x => x % 2 == 1);
+            var odd = source.ObserveWhere(x => x % 2 == 1);
 
             MoveChange<int>? received = null;
             odd.Changed += c => received = (MoveChange<int>)c;
@@ -526,7 +526,7 @@ namespace ReactiveCollections.Tests
             source.Add(2);   // невалиден
             source.Add(3);
 
-            var odd = source.Filter(x => x % 2 == 1);
+            var odd = source.ObserveWhere(x => x % 2 == 1);
 
             bool raised = false;
             odd.Changed += _ => raised = true;
@@ -546,7 +546,7 @@ namespace ReactiveCollections.Tests
             source.Add(3);   // валиден (source 2, filter 1)
             source.Add(5);   // валиден (source 3, filter 2)
 
-            var odd = source.Filter(x => x % 2 == 1);
+            var odd = source.ObserveWhere(x => x % 2 == 1);
 
             MoveChange<int>? received = null;
             odd.Changed += c => received = (MoveChange<int>)c;
@@ -570,7 +570,7 @@ namespace ReactiveCollections.Tests
             source.Add(4);   // невалиден
             source.Add(3);   // валиден (filter 1)
 
-            var odd = source.Filter(x => x % 2 == 1);
+            var odd = source.ObserveWhere(x => x % 2 == 1);
 
             MoveChange<int>? received = null;
             odd.Changed += c => received = (MoveChange<int>)c;
@@ -592,7 +592,7 @@ namespace ReactiveCollections.Tests
             source.Add(20);
             source.Add(10);
 
-            var filter = source.Filter(x => x > 0);
+            var filter = source.ObserveWhere(x => x > 0);
 
             MoveChange<int>? received = null;
             filter.Changed += c => received = (MoveChange<int>)c;
@@ -614,7 +614,7 @@ namespace ReactiveCollections.Tests
             source.Add(p1);
             source.Add(p2);
 
-            var alive = source.Filter(p => p.Level > 0);
+            var alive = source.ObserveWhere(p => p.Level > 0);
             var originalP1 = alive[0];
 
             source.Move(0, 1);
@@ -631,7 +631,7 @@ namespace ReactiveCollections.Tests
         public void Reset_ClearsFilteredItems()
         {
             var source = new ObservableList<Player>();
-            var filter = source.Filter(p => p.Level >= 10);
+            var filter = source.ObserveWhere(p => p.Level >= 10);
 
             source.Add(TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 15));
             source.Add(TestData.CreatePlayer(id: 2, name: "Tom", teamId: 10, level: 20));
@@ -650,7 +650,7 @@ namespace ReactiveCollections.Tests
             source.Add(1);
             source.Add(3);
 
-            var odd = source.Filter(x => x % 2 == 1);
+            var odd = source.ObserveWhere(x => x % 2 == 1);
 
             source.Reset();
             source.Add(5);
@@ -666,7 +666,7 @@ namespace ReactiveCollections.Tests
             source.Add(2);
             source.Add(3);
 
-            var odd = source.Filter(x => x % 2 == 1);
+            var odd = source.ObserveWhere(x => x % 2 == 1);
             Assert.That(odd, Is.EqualTo(new[] { 1, 3 }));
 
             var events = new List<Change<int>>();
@@ -691,8 +691,8 @@ namespace ReactiveCollections.Tests
             source.Add(TestData.CreatePlayer(id: 3, name: "C", teamId: 10, level: 100));
 
             var views = source
-                .Filter(p => p.Level > 0)
-                .Select(p => new PlayerView(), TestData.Bind);
+                .ObserveWhere(p => p.Level > 0)
+                .ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             var viewA = views[0];
             var viewB = views[1];
@@ -718,8 +718,8 @@ namespace ReactiveCollections.Tests
             source.Add(p2);
 
             var views = source
-                .Filter(p => p.Level > 0)
-                .Select(p => new PlayerView(), TestData.Bind);
+                .ObserveWhere(p => p.Level > 0)
+                .ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             var viewA = views[0];
             var viewB = views[1];
@@ -739,7 +739,7 @@ namespace ReactiveCollections.Tests
         public void Dispose_UnsubscribesFromSource()
         {
             var source = new ObservableList<int>();
-            var filter = source.Filter(x => x > 0);
+            var filter = source.ObserveWhere(x => x > 0);
 
             bool received = false;
             filter.Changed += _ => received = true;
@@ -755,7 +755,7 @@ namespace ReactiveCollections.Tests
         public void Dispose_IsIdempotent()
         {
             var source = new ObservableList<int>();
-            var filter = source.Filter(x => true);
+            var filter = source.ObserveWhere(x => true);
 
             filter.Dispose();
 
@@ -766,7 +766,7 @@ namespace ReactiveCollections.Tests
         public void Dispose_DoesNotDisposeSource()
         {
             var source = new ObservableList<int>();
-            var filter = source.Filter(x => true);
+            var filter = source.ObserveWhere(x => true);
 
             filter.Dispose();
 

@@ -20,9 +20,9 @@ namespace ReactiveCollections.Tests
             IObservableList<Player> source)
         {
             return source
-                .Filter(p => p.Level >= 10)
-                .Select(p => new PlayerView(), TestData.Bind)
-                .GroupBy(v => v.TeamId);
+                .ObserveWhere(p => p.Level >= 10)
+                .ObserveSelect(p => new PlayerView(), TestData.Bind)
+                .ObserveGroupBy(v => v.TeamId);
         }
 
         // -------------------------------------------------------------------
@@ -92,9 +92,9 @@ namespace ReactiveCollections.Tests
         public void Add_NewGroup_RaisesNodeEventsInChainOrder()
         {
             var source = new ObservableList<Player>();
-            var filter = source.Filter(p => p.Level >= 10);
-            var select = filter.Select(p => new PlayerView(), TestData.Bind);
-            var groups = select.GroupBy(v => v.TeamId);
+            var filter = source.ObserveWhere(p => p.Level >= 10);
+            var select = filter.ObserveSelect(p => new PlayerView(), TestData.Bind);
+            var groups = select.ObserveGroupBy(v => v.TeamId);
 
             var order = new List<string>();
             filter.Changed += _ => order.Add("filter");
@@ -121,8 +121,8 @@ namespace ReactiveCollections.Tests
             source.Add(p2);
 
             var views = source
-                .Filter(x => x.Level >= 10)
-                .Select(x => new PlayerView(), TestData.Bind);
+                .ObserveWhere(x => x.Level >= 10)
+                .ObserveSelect(x => new PlayerView(), TestData.Bind);
 
             Assert.That(views.Count, Is.EqualTo(2));
 
@@ -326,9 +326,9 @@ namespace ReactiveCollections.Tests
             a.Add(TestData.CreatePlayer(id: 1, name: "Bob", teamId: 10, level: 15));
             b.Add(TestData.CreatePlayer(id: 2, name: "Tom", teamId: 20, level: 15));
 
-            var groups = a.Merge(b)
-                .Select(p => new PlayerView(), TestData.Bind)
-                .GroupBy(v => v.TeamId);
+            var groups = a.ObserveMerge(b)
+                .ObserveSelect(p => new PlayerView(), TestData.Bind)
+                .ObserveGroupBy(v => v.TeamId);
 
             Assert.That(groups.Count, Is.EqualTo(2));
         }
@@ -341,9 +341,9 @@ namespace ReactiveCollections.Tests
         public void Dispose_WholeChain_StopsPropagation()
         {
             var source = new ObservableList<Player>();
-            var filter = source.Filter(p => p.Level >= 10);
-            var select = filter.Select(p => new PlayerView(), TestData.Bind);
-            var groups = select.GroupBy(v => v.TeamId);
+            var filter = source.ObserveWhere(p => p.Level >= 10);
+            var select = filter.ObserveSelect(p => new PlayerView(), TestData.Bind);
+            var groups = select.ObserveGroupBy(v => v.TeamId);
 
             bool groupsChanged = false;
             groups.Changed += _ => groupsChanged = true;

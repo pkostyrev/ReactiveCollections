@@ -257,7 +257,7 @@ namespace ReactiveCollections.Tests
         public void Batch_ThroughFilter_ProducesFilteredResult()
         {
             var source = new ObservableList<int>();
-            var filtered = source.Filter(x => x % 2 == 1);
+            var filtered = source.ObserveWhere(x => x % 2 == 1);
 
             using (source.Batch())
             {
@@ -273,7 +273,7 @@ namespace ReactiveCollections.Tests
         public void Batch_ThroughSelect_ProducesMappedResult()
         {
             var source = new ObservableList<Player>();
-            var views = source.Select(p => new PlayerView(), TestData.Bind);
+            var views = source.ObserveSelect(p => new PlayerView(), TestData.Bind);
 
             using (source.Batch())
             {
@@ -288,7 +288,7 @@ namespace ReactiveCollections.Tests
         public void Batch_ThroughGroupBy_ProducesGroups()
         {
             var source = new ObservableList<Player>();
-            var groups = source.GroupBy(p => p.TeamId);
+            var groups = source.ObserveGroupBy(p => p.TeamId);
 
             using (source.Batch())
             {
@@ -304,7 +304,7 @@ namespace ReactiveCollections.Tests
         {
             var a = new ObservableList<int>();
             var b = new ObservableList<int>();
-            var merged = a.Merge(b);
+            var merged = a.ObserveMerge(b);
 
             var events = new List<Change<int>>();
             merged.Changed += c => events.Add(c);
@@ -329,7 +329,7 @@ namespace ReactiveCollections.Tests
         {
             // FilterNode разворачивает BatchChange в отдельные AddChange.
             var source = new ObservableList<int>();
-            var filter = source.Filter(x => true);
+            var filter = source.ObserveWhere(x => true);
 
             var events = new List<Change<int>>();
             filter.Changed += c => events.Add(c);

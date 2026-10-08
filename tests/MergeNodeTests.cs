@@ -24,7 +24,7 @@ namespace ReactiveCollections.Tests
             second.Add(3);
             second.Add(4);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             Assert.That(merged, Is.EqualTo(new[] { 1, 2, 3, 4 }));
         }
@@ -43,7 +43,7 @@ namespace ReactiveCollections.Tests
             first.Add(b);
             second.Add(c);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             Assert.That(merged[0], Is.SameAs(a));
             Assert.That(merged[1], Is.SameAs(b));
@@ -77,7 +77,7 @@ namespace ReactiveCollections.Tests
             first.Add(1);
             second.Add(2);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             var events = new List<Change<int>>();
             merged.Changed += e => events.Add(e);
@@ -99,7 +99,7 @@ namespace ReactiveCollections.Tests
             first.Add(10);
             second.Add(10);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             Assert.That(merged.Count, Is.EqualTo(2));
             Assert.That(merged[0], Is.EqualTo(10));
@@ -120,7 +120,7 @@ namespace ReactiveCollections.Tests
             second.Add(3);
             second.Add(4);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             AddChange<int>? received = null;
             merged.Changed += c => received = (AddChange<int>)c;
@@ -142,7 +142,7 @@ namespace ReactiveCollections.Tests
             first.Add(2);
             second.Add(3);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             AddChange<int>? received = null;
             merged.Changed += c => received = (AddChange<int>)c;
@@ -159,7 +159,7 @@ namespace ReactiveCollections.Tests
         {
             var first = new ObservableList<int>();
             var second = new ObservableList<int>();
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             var changes = new List<Change<int>>();
             merged.Changed += c => changes.Add(c);
@@ -188,7 +188,7 @@ namespace ReactiveCollections.Tests
             second.Add(3);
             second.Add(4);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             AddChange<int>? received = null;
             merged.Changed += c => received = (AddChange<int>)c;
@@ -211,7 +211,7 @@ namespace ReactiveCollections.Tests
             second.Add(3);
             second.Add(4);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             AddChange<int>? received = null;
             merged.Changed += c => received = (AddChange<int>)c;
@@ -232,7 +232,7 @@ namespace ReactiveCollections.Tests
             first.Add(10);
             second.Add(10);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             Assert.That(merged.Count, Is.EqualTo(2));
             Assert.That(merged.Count(x => x == 10), Is.EqualTo(2));
@@ -251,7 +251,7 @@ namespace ReactiveCollections.Tests
             first.Add(10);
             second.Add(20);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             bool removed = first.Remove(10);
 
@@ -269,7 +269,7 @@ namespace ReactiveCollections.Tests
             first.Add(10);
             second.Add(20);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             bool removed = second.Remove(20);
 
@@ -288,7 +288,7 @@ namespace ReactiveCollections.Tests
             second.Add(3);
             second.Add(4);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             RemoveChange<int>? received = null;
             merged.Changed += c => received = (RemoveChange<int>)c;
@@ -311,7 +311,7 @@ namespace ReactiveCollections.Tests
             second.Add(3);
             second.Add(4);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             RemoveChange<int>? received = null;
             merged.Changed += c => received = (RemoveChange<int>)c;
@@ -333,7 +333,7 @@ namespace ReactiveCollections.Tests
             first.Add(10);
             second.Add(10);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             first.Remove(10);
 
@@ -353,7 +353,7 @@ namespace ReactiveCollections.Tests
             var q = TestData.CreatePlayer(id: 1, name: "A", teamId: 10, level: 1); // Equals(p)
             b.Add(q);
 
-            var m = a.Merge(b);
+            var m = a.ObserveMerge(b);
             // Concat: [p, q]
 
             Assert.That(m.Count, Is.EqualTo(2));
@@ -378,7 +378,7 @@ namespace ReactiveCollections.Tests
             var q = TestData.CreatePlayer(id: 1, name: "A", teamId: 10, level: 1);
             b.Add(q);
 
-            var m = a.Merge(b);
+            var m = a.ObserveMerge(b);
 
             a.Remove(p);
 
@@ -399,7 +399,7 @@ namespace ReactiveCollections.Tests
             var item = TestData.CreatePlayer(id: 1, name: "Old", teamId: 10, level: 1);
             first.Add(item);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             UpdateChange<Player>? received = null;
             merged.Changed += c => received = (UpdateChange<Player>)c;
@@ -423,7 +423,7 @@ namespace ReactiveCollections.Tests
             var item = TestData.CreatePlayer(id: 1, name: "Old", teamId: 10, level: 1);
             second.Add(item);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             UpdateChange<Player>? received = null;
             merged.Changed += c => received = (UpdateChange<Player>)c;
@@ -448,7 +448,7 @@ namespace ReactiveCollections.Tests
             first.Add(b1);
             second.Add(b2);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             UpdateChange<Player>? received = null;
             merged.Changed += c => received = (UpdateChange<Player>)c;
@@ -479,7 +479,7 @@ namespace ReactiveCollections.Tests
             first.Add(b1);
             second.Add(b2);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             UpdateChange<Player>? received = null;
             merged.Changed += c => received = (UpdateChange<Player>)c;
@@ -509,7 +509,7 @@ namespace ReactiveCollections.Tests
 
             first.Add(oldItem);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             bool replaced = first.Replace(oldItem, newItem);
 
@@ -529,7 +529,7 @@ namespace ReactiveCollections.Tests
 
             first.Add(oldItem);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             ReplaceChange<Player>? received = null;
             merged.Changed += c => received = (ReplaceChange<Player>)c;
@@ -552,7 +552,7 @@ namespace ReactiveCollections.Tests
             second.Add(3);
             second.Add(4);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             ReplaceChange<int>? received = null;
             merged.Changed += c => received = (ReplaceChange<int>)c;
@@ -576,7 +576,7 @@ namespace ReactiveCollections.Tests
             second.Add(3);
             second.Add(4);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             ReplaceChange<int>? received = null;
             merged.Changed += c => received = (ReplaceChange<int>)c;
@@ -599,7 +599,7 @@ namespace ReactiveCollections.Tests
             a.Add(1);
             b.Add(1);
 
-            var m = a.Merge(b);
+            var m = a.ObserveMerge(b);
 
             a.Replace(1, 10);
 
@@ -623,7 +623,7 @@ namespace ReactiveCollections.Tests
             second.Add(4);
             second.Add(5);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             MoveChange<int>? received = null;
             merged.Changed += c => received = (MoveChange<int>)c;
@@ -648,7 +648,7 @@ namespace ReactiveCollections.Tests
             second.Add(4);
             second.Add(5);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             MoveChange<int>? received = null;
             merged.Changed += c => received = (MoveChange<int>)c;
@@ -677,7 +677,7 @@ namespace ReactiveCollections.Tests
             second.Add(3);
             second.Add(4);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             first.Reset();
 
@@ -696,7 +696,7 @@ namespace ReactiveCollections.Tests
             second.Add(3);
             second.Add(4);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             second.Reset();
 
@@ -713,7 +713,7 @@ namespace ReactiveCollections.Tests
             first.Add(1);
             second.Add(2);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             var events = new List<Change<int>>();
             merged.Changed += e => events.Add(e);
@@ -733,7 +733,7 @@ namespace ReactiveCollections.Tests
             first.Add(1);
             second.Add(2);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             first.Reset();
             second.Reset();
@@ -747,7 +747,7 @@ namespace ReactiveCollections.Tests
             var first = new ObservableList<int>();
             var second = new ObservableList<int>();
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             bool raised = false;
             merged.Changed += _ => raised = true;
@@ -766,7 +766,7 @@ namespace ReactiveCollections.Tests
             first.Add(1);
             second.Add(2);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             first.Reset();
             first.Add(3);
@@ -792,7 +792,7 @@ namespace ReactiveCollections.Tests
             second.Add(3);
             second.Add(4);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             using (first.Batch())
             {
@@ -811,7 +811,7 @@ namespace ReactiveCollections.Tests
             first.Add(1);
             second.Add(2);
 
-            var merged = first.Merge(second);
+            var merged = first.ObserveMerge(second);
 
             using (second.Batch())
             {
@@ -832,8 +832,8 @@ namespace ReactiveCollections.Tests
             var first = new ObservableList<int>();
             var second = new ObservableList<int>();
 
-            var merged = first.Merge(second);
-            var positive = merged.Filter(x => x > 0);
+            var merged = first.ObserveMerge(second);
+            var positive = merged.ObserveWhere(x => x > 0);
 
             first.Add(-1);
             first.Add(10);
@@ -853,7 +853,7 @@ namespace ReactiveCollections.Tests
         {
             var a = new ObservableList<int>();
             var b = new ObservableList<int>();
-            var merge = a.Merge(b);
+            var merge = a.ObserveMerge(b);
 
             bool received = false;
             merge.Changed += _ => received = true;
@@ -871,7 +871,7 @@ namespace ReactiveCollections.Tests
         {
             var a = new ObservableList<int>();
             var b = new ObservableList<int>();
-            var merge = a.Merge(b);
+            var merge = a.ObserveMerge(b);
 
             merge.Dispose();
 
@@ -883,7 +883,7 @@ namespace ReactiveCollections.Tests
         {
             var a = new ObservableList<int>();
             var b = new ObservableList<int>();
-            var merge = a.Merge(b);
+            var merge = a.ObserveMerge(b);
 
             merge.Dispose();
 

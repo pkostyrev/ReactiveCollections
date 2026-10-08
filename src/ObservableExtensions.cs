@@ -17,7 +17,7 @@ namespace ReactiveCollections
         /// Создаёт фильтр: оставляет только элементы, удовлетворяющие предикату.
         /// </summary>
         /// <param name="predicate">Предикат фильтрации.</param>
-        public static FilterNode<T> Filter<T>(
+        public static FilterNode<T> ObserveWhere<T>(
             this IObservableList<T> source,
             Func<T, bool> predicate)
             => new FilterNode<T>(source, predicate);
@@ -34,7 +34,7 @@ namespace ReactiveCollections
         /// При <c>Update</c> существующий результат сохраняется и обновляется
         /// через <paramref name="updater"/>, без создания нового экземпляра.
         /// </remarks>
-        public static SelectNode<TSource, TResult> Select<TSource, TResult>(
+        public static SelectNode<TSource, TResult> ObserveSelect<TSource, TResult>(
             this IObservableList<TSource> source,
             Func<TSource, TResult> factory,
             Action<TSource, TResult> updater)
@@ -49,7 +49,7 @@ namespace ReactiveCollections
         /// должен возвращать допустимый ключ. Для ссылочного
         /// <typeparamref name="TKey"/> значение <c>null</c> не поддерживается.
         /// </remarks>
-        public static GroupNode<TKey, T> GroupBy<TKey, T>(
+        public static GroupNode<TKey, T> ObserveGroupBy<TKey, T>(
             this IObservableList<T> source,
             Func<T, TKey> selector)
             => new GroupNode<TKey, T>(source, selector);
@@ -61,7 +61,7 @@ namespace ReactiveCollections
         /// Порядок: сначала все элементы <paramref name="first"/>, затем
         /// все элементы <paramref name="second"/>. Дубликаты сохраняются.
         /// </remarks>
-        public static MergeNode<T> Merge<T>(
+        public static MergeNode<T> ObserveMerge<T>(
             this IObservableList<T> first,
             IObservableList<T> second)
             => new MergeNode<T>(first, second);
@@ -78,7 +78,7 @@ namespace ReactiveCollections
         /// вернул ту же ссылку на вложенную коллекцию — ничего не происходит;
         /// если новую — подписка переключается.
         /// </remarks>
-        public static SelectManyNode<TSource, TResult> SelectMany<TSource, TResult>(
+        public static SelectManyNode<TSource, TResult> ObserveSelectMany<TSource, TResult>(
             this IObservableList<TSource> source,
             Func<TSource, IObservableList<TResult>> selector)
             => new SelectManyNode<TSource, TResult>(source, selector);
@@ -88,13 +88,13 @@ namespace ReactiveCollections
         /// </summary>
         /// <param name="selector">Селектор ключа сортировки.</param>
         /// <remarks>Порядок элементов с равными ключами не определён.</remarks>
-        public static OrderByNode<TSource, TKey> OrderBy<TSource, TKey>(
+        public static OrderByNode<TSource, TKey> ObserveOrderBy<TSource, TKey>(
             this IObservableList<TSource> source,
             Func<TSource, TKey> selector)
             => new OrderByNode<TSource, TKey>(source, selector);
 
-        /// <inheritdoc cref="OrderBy{TSource, TKey}(IObservableList{TSource}, Func{TSource, TKey})"/>
-        public static OrderByNode<TSource, TKey> OrderBy<TSource, TKey>(
+        /// <inheritdoc cref="ObserveOrderBy{TSource, TKey}(IObservableList{TSource}, Func{TSource, TKey})"/>
+        public static OrderByNode<TSource, TKey> ObserveOrderBy<TSource, TKey>(
             this IObservableList<TSource> source,
             Func<TSource, TKey> selector,
             IComparer<TKey>? comparer)
@@ -105,13 +105,13 @@ namespace ReactiveCollections
         /// </summary>
         /// <param name="selector">Селектор ключа сортировки.</param>
         /// <remarks>Порядок элементов с равными ключами не определён.</remarks>
-        public static OrderByNode<TSource, TKey> OrderByDescending<TSource, TKey>(
+        public static OrderByNode<TSource, TKey> ObserveOrderByDescending<TSource, TKey>(
             this IObservableList<TSource> source,
             Func<TSource, TKey> selector)
             => new OrderByNode<TSource, TKey>(source, selector, descending: true);
 
-        /// <inheritdoc cref="OrderByDescending{TSource, TKey}(IObservableList{TSource}, Func{TSource, TKey})"/>
-        public static OrderByNode<TSource, TKey> OrderByDescending<TSource, TKey>(
+        /// <inheritdoc cref="ObserveOrderByDescending{TSource, TKey}(IObservableList{TSource}, Func{TSource, TKey})"/>
+        public static OrderByNode<TSource, TKey> ObserveOrderByDescending<TSource, TKey>(
             this IObservableList<TSource> source,
             Func<TSource, TKey> selector,
             IComparer<TKey>? comparer)

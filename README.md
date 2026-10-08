@@ -218,23 +218,23 @@ batch:
 
 ### 3.4 Extension-методы
 
-    var filtered = source.Filter(p => p.Level >= 10);
+    var filtered = source.ObserveWhere(p => p.Level >= 10);
 
-    var views = source.Select(
+    var views = source.ObserveSelect(
         p => new PlayerView(p),
         (p, view) => view.Refresh(p));
 
-    var groups = source.GroupBy(p => p.TeamId);
+    var groups = source.ObserveGroupBy(p => p.TeamId);
 
-    var merged = first.Merge(second);
+    var merged = first.ObserveMerge(second);
 
-    var flat = players.SelectMany(p => p.Items);
+    var flat = players.ObserveSelectMany(p => p.Items);
 
-    var sorted = players.OrderBy(p => p.Level);
+    var sorted = players.ObserveOrderBy(p => p.Level);
 
     var top = players
-        .Filter(p => p.Level >= 10)
-        .OrderByDescending(p => p.Level);
+        .ObserveWhere(p => p.Level >= 10)
+        .ObserveOrderByDescending(p => p.Level);
 
 ### 3.5 `ObservableValue<T>`
 
@@ -254,9 +254,14 @@ batch:
 
     var count = players.ObserveCount();
 
-Имена начинаются с `Observe*`, чтобы явно отличать **живые реактивные
-агрегаты** от одноразовых LINQ-агрегаций (`Count`, `Any`, `Sum` и т.д.).
-Это делает намерение вызова очевидным.
+Имена reactive extension-методов начинаются с `Observe*`, чтобы явно
+отличать живые реактивные операции от одноимённых одноразовых LINQ-
+операций над `IEnumerable<T>`.
+
+`Observe*` применяется как к проекциям коллекций (`ObserveWhere`,
+`ObserveSelect`, `ObserveGroupBy`, `ObserveSelectMany`,
+`ObserveOrderBy`), так и к реактивным агрегатам
+(`ObserveCount`, `ObserveAny`, `ObserveSum` и т.д.).
 
 | Живой метод | Аналог LINQ | Тип результата |
 |---|---|---|
@@ -439,7 +444,7 @@ SelectMany) **разворачивают** `BatchChange` в отдельные �
 2.0, включая .NET Framework 4.6.2+, .NET Core, .NET 5+ и Unity
 с поддержкой .NET Standard 2.0.
 
-### 4.14 OrderBy — нестабильная сортировка
+### 4.14 ObserveOrderBy — нестабильная сортировка
 
 OrderByNode поддерживает порядок элементов по ключу сортировки.
 Порядок элементов с равными ключами не является частью контракта:
@@ -448,7 +453,7 @@ OrderByNode поддерживает порядок элементов по кл
 
 Для устойчивого порядка включайте в ключ вторичный признак:
 
-    source.OrderBy(x => (x.Level, x.Id))
+    source.ObserveOrderBy(x => (x.Level, x.Id))
 
 ---
 
@@ -457,30 +462,30 @@ OrderByNode поддерживает порядок элементов по кл
 ### 5.1 Player → PlayerView → Group
 
     var views = players
-        .Filter(p => p.Level >= 10)
-        .Select(
+        .ObserveWhere(p => p.Level >= 10)
+        .ObserveSelect(
             p => new PlayerView(p),
             (p, view) => view.Refresh(p))
-        .GroupBy(view => view.TeamId);
+        .ObserveGroupBy(view => view.TeamId);
 
 ### 5.2 Живая группа с ссылкой на вложенный список
 
     var groups = results
-        .Filter(r => r.SessionVM.SchemeIndex >= 0)
-        .GroupBy(r => r.SessionVM.SchemeIndex);
+        .ObserveWhere(r => r.SessionVM.SchemeIndex >= 0)
+        .ObserveGroupBy(r => r.SessionVM.SchemeIndex);
 
-    var dynamics = groups.Select(
+    var dynamics = groups.ObserveSelect(
         g => new Dynamics(g.Items),
         (_, _) => { });
 
     // Dynamics получает ту же живую коллекцию, что и g.Items.
     // Изменения g.Items видны Dynamics без пересоздания объекта.
 
-### 5.3 Наследование через `Select` без потери ссылки
+### 5.3 Наследование через `ObserveSelect` без потери ссылки
 
     public class DerivedResult : ResultBase { }
 
-    var bases = results.Select(
+    var bases = results.ObserveSelect(
         r => (ResultBase)r,
         (_, _) => { });
 
@@ -491,7 +496,7 @@ OrderByNode поддерживает порядок элементов по кл
     var source = new ObservableList<Result>();
     // у каждого Result есть свой Items — ObservableList<Item>
 
-    var flat = source.SelectMany(r => r.Items);
+    var flat = source.ObserveSelectMany(r => r.Items);
     // flat = [все элементы всех Results в порядке source]
 
     source.Add(newResult);        // блок нового Result добавляется
@@ -609,12 +614,22 @@ Multicast delegate по умолчанию прерывает обход при 
 В реактивной цепочке это означало бы, что упавший подписчик отрезает
 остальных. `Raise` собирает исключения и вызывает всех.
 
-### Почему `Observe*` для агрегатов
+### Почему `Observe*` для reactive-операций
 
-Живой реактивный агрегат (`ObserveCount`) и одноразовая LINQ-агрегация
-(`Count`) семантически разные операции. Префикс `Observe*` делает
-намерение вызова очевидным, не связываясь с правилами разрешения
-extension-методов или потенциальными конфликтами имён.
+Reactive extension-методы используют префикс `Observe`, чтобы явно
+отличать живые операции от одноразовых LINQ-операций над
+`IEnumerable<T>`.
+
+Например:
+
+    source.ObserveSelect(...)
+    source.ObserveWhere(...)
+    source.ObserveOrderBy(...)
+    source.ObserveCount()
+
+Префикс не зависит от правил разрешения extension-методов и не требует
+знать фактический тип переменной, чтобы понять, что операция создаёт
+поддерживаемую реактивную проекцию или значение.
 
 ### Почему батчинг не каскадируется
 

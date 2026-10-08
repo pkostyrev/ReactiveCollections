@@ -276,7 +276,7 @@ namespace ReactiveCollections.Tests
         public void Count_AfterFilter_ReflectsFilteredCount()
         {
             var source = new ObservableList<Player>();
-            var alive = source.Filter(p => p.Level > 0);
+            var alive = source.ObserveWhere(p => p.Level > 0);
 
             var count = alive.ObserveCount();
 

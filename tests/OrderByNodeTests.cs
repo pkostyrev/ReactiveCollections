@@ -20,7 +20,7 @@ namespace ReactiveCollections.Tests
         {
             var source = new ObservableList<Player>();
 
-            var sorted = source.OrderBy(p => p.Level);
+            var sorted = source.ObserveOrderBy(p => p.Level);
 
             Assert.That(sorted.Count, Is.EqualTo(0));
         }
@@ -33,7 +33,7 @@ namespace ReactiveCollections.Tests
             source.Add(P(id: 2, level: 10));
             source.Add(P(id: 3, level: 20));
 
-            var sorted = source.OrderBy(p => p.Level);
+            var sorted = source.ObserveOrderBy(p => p.Level);
 
             Assert.That(sorted.Count, Is.EqualTo(3));
             Assert.That(sorted[0].Level, Is.EqualTo(10));
@@ -48,7 +48,7 @@ namespace ReactiveCollections.Tests
             source.Add(3);
             source.Add(1);
 
-            var sorted = source.OrderBy(x => x);
+            var sorted = source.ObserveOrderBy(x => x);
 
             Assert.That(sorted, Is.TypeOf<OrderByNode<int, int>>());
         }
@@ -61,7 +61,7 @@ namespace ReactiveCollections.Tests
             source.Add(P(id: 2, level: 30));
             source.Add(P(id: 3, level: 20));
 
-            var sorted = source.OrderByDescending(p => p.Level);
+            var sorted = source.ObserveOrderByDescending(p => p.Level);
 
             Assert.That(sorted[0].Level, Is.EqualTo(30));
             Assert.That(sorted[1].Level, Is.EqualTo(20));
@@ -78,7 +78,7 @@ namespace ReactiveCollections.Tests
 
             // обратный порядок через кастомный компаратор
             var descending = Comparer<int>.Create((a, b) => b.CompareTo(a));
-            var sorted = source.OrderBy(x => x, descending);
+            var sorted = source.ObserveOrderBy(x => x, descending);
 
             Assert.That(sorted, Is.EqualTo(new[] { 3, 2, 1 }));
         }
@@ -91,7 +91,7 @@ namespace ReactiveCollections.Tests
         public void Add_ToEmpty_InsertsItem()
         {
             var source = new ObservableList<Player>();
-            var sorted = source.OrderBy(p => p.Level);
+            var sorted = source.ObserveOrderBy(p => p.Level);
 
             var p = P(id: 1, level: 10);
             source.Add(p);
@@ -107,7 +107,7 @@ namespace ReactiveCollections.Tests
             source.Add(P(id: 1, level: 10));
             source.Add(P(id: 2, level: 20));
 
-            var sorted = source.OrderBy(p => p.Level);
+            var sorted = source.ObserveOrderBy(p => p.Level);
 
             var newP = P(id: 3, level: 30);
             source.Add(newP);
@@ -122,7 +122,7 @@ namespace ReactiveCollections.Tests
             source.Add(P(id: 1, level: 20));
             source.Add(P(id: 2, level: 30));
 
-            var sorted = source.OrderBy(p => p.Level);
+            var sorted = source.ObserveOrderBy(p => p.Level);
 
             var newP = P(id: 3, level: 10);
             source.Add(newP);
@@ -139,7 +139,7 @@ namespace ReactiveCollections.Tests
             source.Add(P(id: 1, level: 10));
             source.Add(P(id: 2, level: 30));
 
-            var sorted = source.OrderBy(p => p.Level);
+            var sorted = source.ObserveOrderBy(p => p.Level);
 
             var newP = P(id: 3, level: 20);
             source.Add(newP);
@@ -158,7 +158,7 @@ namespace ReactiveCollections.Tests
             source.Add(p1);
             source.Add(p2);
 
-            var sorted = source.OrderBy(x => x.Level);
+            var sorted = source.ObserveOrderBy(x => x.Level);
 
             // Вставляем p3 на source-index 0
             var p3 = P(id: 3, level: 10);
@@ -193,7 +193,7 @@ namespace ReactiveCollections.Tests
             source.Add(p2);
             source.Add(p3);
 
-            var sorted = source.OrderBy(p => p.Level);
+            var sorted = source.ObserveOrderBy(p => p.Level);
 
             source.Remove(p2);
 
@@ -214,7 +214,7 @@ namespace ReactiveCollections.Tests
             source.Add(p1);
             source.Add(p2);
 
-            var sorted = source.OrderBy(p => p.Level);
+            var sorted = source.ObserveOrderBy(p => p.Level);
             Assert.That(sorted.Count, Is.EqualTo(2));
 
             source.RemoveAt(1);
@@ -234,7 +234,7 @@ namespace ReactiveCollections.Tests
             var p = P(id: 1, level: 10);
             source.Add(p);
 
-            var sorted = source.OrderBy(x => x.Level);
+            var sorted = source.ObserveOrderBy(x => x.Level);
 
             UpdateChange<Player>? received = null;
             sorted.Changed += c => received = (UpdateChange<Player>)c;
@@ -262,7 +262,7 @@ namespace ReactiveCollections.Tests
             source.Add(p2);
             source.Add(p3);
 
-            var sorted = source.OrderBy(x => x.Level);
+            var sorted = source.ObserveOrderBy(x => x.Level);
             Assert.That(sorted[0], Is.SameAs(p1));
 
             // p1 становится самым большим
@@ -283,7 +283,7 @@ namespace ReactiveCollections.Tests
 
             // Компаратор считает 11 и 19 эквивалентными (оба в [10, 20))
             var comparer = Comparer<int>.Create((a, b) => (a / 10).CompareTo(b / 10));
-            var sorted = source.OrderBy(x => x.Level, comparer);
+            var sorted = source.ObserveOrderBy(x => x.Level, comparer);
 
             var events = new List<Change<Player>>();
             sorted.Changed += events.Add;
@@ -311,7 +311,7 @@ namespace ReactiveCollections.Tests
             source.Add(p2);
             source.Add(p3);
 
-            var sorted = source.OrderBy(x => x.Level);
+            var sorted = source.ObserveOrderBy(x => x.Level);
 
             var events = new List<Change<Player>>();
             sorted.Changed += events.Add;
@@ -342,7 +342,7 @@ namespace ReactiveCollections.Tests
             source.Add(p1);
             source.Add(p2);
 
-            var sorted = source.OrderBy(x => x.Level);
+            var sorted = source.ObserveOrderBy(x => x.Level);
 
             var events = new List<Change<Player>>();
             sorted.Changed += events.Add;
@@ -371,7 +371,7 @@ namespace ReactiveCollections.Tests
             source.Add(p1);
             source.Add(p2);
 
-            var sorted = source.OrderBy(p => p.Level);
+            var sorted = source.ObserveOrderBy(p => p.Level);
 
             p2.Name = "Changed";
             source.UpdateAt(1);
@@ -394,7 +394,7 @@ namespace ReactiveCollections.Tests
             source.Add(p1);
             source.Add(p2);
 
-            var sorted = source.OrderBy(x => x.Level);
+            var sorted = source.ObserveOrderBy(x => x.Level);
 
             ReplaceChange<Player>? received = null;
             sorted.Changed += c => received = (ReplaceChange<Player>)c;
@@ -428,7 +428,7 @@ namespace ReactiveCollections.Tests
             source.Add(p1);
             source.Add(p2);
 
-            var sorted = source.OrderBy(x => x.Level);
+            var sorted = source.ObserveOrderBy(x => x.Level);
 
             var replacement = P(id: 99, level: 100);
             source.Replace(p1, replacement);
@@ -444,7 +444,7 @@ namespace ReactiveCollections.Tests
             source.Add(11);
 
             var comparer = Comparer<int>.Create((a, b) => (a / 10).CompareTo(b / 10));
-            var sorted = source.OrderBy(x => x, comparer);
+            var sorted = source.ObserveOrderBy(x => x, comparer);
 
             var events = new List<Change<int>>();
             sorted.Changed += events.Add;
@@ -464,7 +464,7 @@ namespace ReactiveCollections.Tests
             source.Add(p1);
             source.Add(p2);
 
-            var sorted = source.OrderBy(x => x.Level);
+            var sorted = source.ObserveOrderBy(x => x.Level);
 
             var events = new List<Change<Player>>();
             sorted.Changed += events.Add;
@@ -501,7 +501,7 @@ namespace ReactiveCollections.Tests
             source.Add(p2);
             source.Add(p3);
 
-            var sorted = source.OrderBy(x => x.Level);
+            var sorted = source.ObserveOrderBy(x => x.Level);
 
             var events = new List<Change<Player>>();
             sorted.Changed += events.Add;
@@ -525,7 +525,7 @@ namespace ReactiveCollections.Tests
             source.Add(p2);
             source.Add(p3);
 
-            var sorted = source.OrderBy(x => x.Level);
+            var sorted = source.ObserveOrderBy(x => x.Level);
 
             // source: [p1, p2, p3] → [p2, p1, p3]
             source.Move(0, 1);
@@ -549,7 +549,7 @@ namespace ReactiveCollections.Tests
             source.Add(p2);
             source.Add(p3);
 
-            var sorted = source.OrderBy(x => x.Level);
+            var sorted = source.ObserveOrderBy(x => x.Level);
 
             // source: [p1, p2, p3] → [p2, p1, p3]
             source.Move(0, 1);
@@ -573,7 +573,7 @@ namespace ReactiveCollections.Tests
             source.Add(P(id: 1, level: 10));
             source.Add(P(id: 2, level: 20));
 
-            var sorted = source.OrderBy(x => x.Level);
+            var sorted = source.ObserveOrderBy(x => x.Level);
 
             source.Reset();
 
@@ -587,7 +587,7 @@ namespace ReactiveCollections.Tests
             source.Add(P(id: 1, level: 10));
             source.Add(P(id: 2, level: 20));
 
-            var sorted = source.OrderBy(x => x.Level);
+            var sorted = source.ObserveOrderBy(x => x.Level);
 
             var events = new List<Change<Player>>();
             sorted.Changed += c => events.Add(c);
@@ -604,7 +604,7 @@ namespace ReactiveCollections.Tests
             var source = new ObservableList<Player>();
             source.Add(P(id: 1, level: 10));
 
-            var sorted = source.OrderBy(x => x.Level);
+            var sorted = source.ObserveOrderBy(x => x.Level);
 
             source.Reset();
             source.Add(P(id: 2, level: 5));
@@ -628,7 +628,7 @@ namespace ReactiveCollections.Tests
             source.Add(p2);
             source.Add(p3);
 
-            var sorted = source.OrderBy(x => x.Level);
+            var sorted = source.ObserveOrderBy(x => x.Level);
 
             // Вставка равных ключей идёт "после существующих" — порядок вставки сохраняется.
             // Это детерминированное поведение текущей реализации, но не контракт.
@@ -645,7 +645,7 @@ namespace ReactiveCollections.Tests
         public void Dispose_UnsubscribesFromSource()
         {
             var source = new ObservableList<Player>();
-            var sorted = source.OrderBy(x => x.Level);
+            var sorted = source.ObserveOrderBy(x => x.Level);
 
             bool received = false;
             sorted.Changed += _ => received = true;
@@ -660,7 +660,7 @@ namespace ReactiveCollections.Tests
         public void Dispose_IsIdempotent()
         {
             var source = new ObservableList<Player>();
-            var sorted = source.OrderBy(x => x.Level);
+            var sorted = source.ObserveOrderBy(x => x.Level);
 
             sorted.Dispose();
 
@@ -671,7 +671,7 @@ namespace ReactiveCollections.Tests
         public void Dispose_DoesNotDisposeSource()
         {
             var source = new ObservableList<Player>();
-            var sorted = source.OrderBy(x => x.Level);
+            var sorted = source.ObserveOrderBy(x => x.Level);
 
             sorted.Dispose();
 
@@ -692,8 +692,8 @@ namespace ReactiveCollections.Tests
             source.Add(P(id: 3, level: 10, name: "Alive"));
 
             var sorted = source
-                .Filter(p => p.Name == "Alive")
-                .OrderBy(p => p.Level);
+                .ObserveWhere(p => p.Name == "Alive")
+                .ObserveOrderBy(p => p.Level);
 
             Assert.That(sorted.Count, Is.EqualTo(2));
             Assert.That(sorted[0].Id, Is.EqualTo(3));   // level 10

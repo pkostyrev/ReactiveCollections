@@ -32,7 +32,7 @@ namespace ReactiveCollections.Tests
         {
             var source = new ObservableList<Bag>();
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             Assert.That(flat.Count, Is.EqualTo(0));
         }
@@ -45,7 +45,7 @@ namespace ReactiveCollections.Tests
             source.Add(CreateBag(2, 3));
             source.Add(CreateBag(3, 4, 5));
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             Assert.That(flat, Is.EqualTo(new[] { 1, 2, 3, 4, 5 }));
         }
@@ -58,7 +58,7 @@ namespace ReactiveCollections.Tests
             source.Add(new Bag { Id = 2 });   // пустой
             source.Add(CreateBag(3, 3));
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             Assert.That(flat, Is.EqualTo(new[] { 1, 3 }));
         }
@@ -67,7 +67,7 @@ namespace ReactiveCollections.Tests
         public void Constructor_NullSource_Throws()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                ObservableExtensions.SelectMany<Bag, int>(null!, b => b.Items));
+                ObservableExtensions.ObserveSelectMany<Bag, int>(null!, b => b.Items));
         }
 
         [Test]
@@ -76,7 +76,7 @@ namespace ReactiveCollections.Tests
             var source = new ObservableList<Bag>();
 
             Assert.Throws<ArgumentNullException>(() =>
-                source.SelectMany((Func<Bag, IObservableList<int>>)null!));
+                source.ObserveSelectMany((Func<Bag, IObservableList<int>>)null!));
         }
 
         [Test]
@@ -86,7 +86,7 @@ namespace ReactiveCollections.Tests
             source.Add(new Bag { Id = 1 });
 
             Assert.Throws<InvalidOperationException>(() =>
-                source.SelectMany(b => (IObservableList<int>)null!));
+                source.ObserveSelectMany(b => (IObservableList<int>)null!));
         }
 
         // -------------------------------------------------------------------
@@ -98,7 +98,7 @@ namespace ReactiveCollections.Tests
         {
             var source = new ObservableList<Bag>();
             source.Add(CreateBag(1, 10));
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             source.Add(CreateBag(2, 20, 30));
 
@@ -111,7 +111,7 @@ namespace ReactiveCollections.Tests
             var source = new ObservableList<Bag>();
             source.Add(CreateBag(1, 1));
             source.Add(CreateBag(2, 2));
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             // Вставляем между b1 и b2
             source.AddAt(1, CreateBag(3, 30, 31));
@@ -123,7 +123,7 @@ namespace ReactiveCollections.Tests
         public void Add_EmptyBag_DoesNotChangeResult()
         {
             var source = new ObservableList<Bag>();
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             source.Add(new Bag { Id = 1 });
 
@@ -145,7 +145,7 @@ namespace ReactiveCollections.Tests
             source.Add(b2);
             source.Add(b3);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
             Assert.That(flat, Is.EqualTo(new[] { 1, 2, 3, 4, 5 }));
 
             source.Remove(b2);
@@ -159,7 +159,7 @@ namespace ReactiveCollections.Tests
             var source = new ObservableList<Bag>();
             source.Add(CreateBag(1, 1));
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             Assert.DoesNotThrow(() => source.Remove(CreateBag(99, 5)));
             Assert.That(flat.Count, Is.EqualTo(1));
@@ -176,7 +176,7 @@ namespace ReactiveCollections.Tests
             var b1 = CreateBag(1, 10, 20);
             source.Add(b1);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
             var originalItems = b1.Items;
 
             bool raised = false;
@@ -197,7 +197,7 @@ namespace ReactiveCollections.Tests
             var b1 = CreateBag(1, 10, 20);
             source.Add(b1);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             b1.Items = new ObservableList<int>();
             b1.Items.Add(100);
@@ -216,7 +216,7 @@ namespace ReactiveCollections.Tests
             var b1 = CreateBag(1, 10);
             source.Add(b1);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
             var oldInner = b1.Items;
 
             b1.Items = new ObservableList<int>();
@@ -238,7 +238,7 @@ namespace ReactiveCollections.Tests
             source.Add(b2);
             source.Add(b3);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             b2.Items = new ObservableList<int>();
             b2.Items.Add(99);
@@ -259,7 +259,7 @@ namespace ReactiveCollections.Tests
             var b2 = CreateBag(2, 100, 200);
             source.Add(b1);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
             Assert.That(flat, Is.EqualTo(new[] { 10, 20 }));
 
             source.Replace(b1, b2);
@@ -274,7 +274,7 @@ namespace ReactiveCollections.Tests
             var b1 = CreateBag(1, 10, 20);
             source.Add(b1);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             bool raised = false;
             flat.Changed += _ => raised = true;
@@ -302,7 +302,7 @@ namespace ReactiveCollections.Tests
             source.Add(b2);
             source.Add(b3);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
             Assert.That(flat, Is.EqualTo(new[] { 1, 2, 3, 4, 5 }));
 
             // b1 (блок [1,2]) в конец
@@ -322,7 +322,7 @@ namespace ReactiveCollections.Tests
             var b1 = CreateBag(1, 10);
             source.Add(b1);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             b1.Items.Add(20);
 
@@ -338,7 +338,7 @@ namespace ReactiveCollections.Tests
             source.Add(b1);
             source.Add(b2);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             AddChange<int>? received = null;
             flat.Changed += c => received = (AddChange<int>)c;
@@ -359,7 +359,7 @@ namespace ReactiveCollections.Tests
             source.Add(b1);
             source.Add(b2);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             UpdateChange<int>? received = null;
             flat.Changed += c => received = (UpdateChange<int>)c;
@@ -377,7 +377,7 @@ namespace ReactiveCollections.Tests
             var b1 = CreateBag(1, 10, 20);
             source.Add(b1);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             b1.Items.Remove(10);
 
@@ -391,7 +391,7 @@ namespace ReactiveCollections.Tests
             var b1 = CreateBag(1, 10);
             source.Add(b1);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             Change<int>? received = null;
             flat.Changed += c => received = c;
@@ -411,7 +411,7 @@ namespace ReactiveCollections.Tests
             source.Add(b1);
             source.Add(b2);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             MoveChange<int>? received = null;
             flat.Changed += c => received = (MoveChange<int>)c;
@@ -433,7 +433,7 @@ namespace ReactiveCollections.Tests
             source.Add(b1);
             source.Add(b2);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
             Assert.That(flat, Is.EqualTo(new[] { 10, 20, 30 }));
 
             b1.Items.Reset();
@@ -450,7 +450,7 @@ namespace ReactiveCollections.Tests
             source.Add(b1);
             source.Add(b2);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             b1.Items.Reset();
             b1.Items.Add(100);
@@ -470,7 +470,7 @@ namespace ReactiveCollections.Tests
             source.Add(CreateBag(1, 10, 20));
             source.Add(CreateBag(2, 30));
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             source.Reset();
 
@@ -484,7 +484,7 @@ namespace ReactiveCollections.Tests
             source.Add(CreateBag(1, 10));
             source.Add(CreateBag(2, 20));
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             var events = new List<Change<int>>();
             flat.Changed += c => events.Add(c);
@@ -500,7 +500,7 @@ namespace ReactiveCollections.Tests
         {
             var source = new ObservableList<Bag>();
             source.Add(CreateBag(1, 10));
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             source.Reset();
             source.Add(CreateBag(2, 20));
@@ -513,7 +513,7 @@ namespace ReactiveCollections.Tests
         {
             var source = new ObservableList<Bag>();
             source.Add(CreateBag(1, 10));
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             source.Reset();
 
@@ -539,7 +539,7 @@ namespace ReactiveCollections.Tests
             source.Add(b1);
             source.Add(b2);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             b1.Items.Add(1);
             b2.Items.Add(1);
@@ -560,7 +560,7 @@ namespace ReactiveCollections.Tests
         public void Dispose_UnsubscribesFromSource()
         {
             var source = new ObservableList<Bag>();
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             bool received = false;
             flat.Changed += _ => received = true;
@@ -580,7 +580,7 @@ namespace ReactiveCollections.Tests
             source.Add(b1);
             source.Add(b2);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             bool received = false;
             flat.Changed += _ => received = true;
@@ -597,7 +597,7 @@ namespace ReactiveCollections.Tests
         public void Dispose_IsIdempotent()
         {
             var source = new ObservableList<Bag>();
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
 
             flat.Dispose();
 
@@ -611,7 +611,7 @@ namespace ReactiveCollections.Tests
             var b1 = CreateBag(1, 10);
             source.Add(b1);
 
-            var flat = source.SelectMany(b => b.Items);
+            var flat = source.ObserveSelectMany(b => b.Items);
             flat.Dispose();
 
             Assert.DoesNotThrow(() => source.Add(CreateBag(2, 20)));
